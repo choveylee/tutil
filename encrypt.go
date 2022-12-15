@@ -9,6 +9,7 @@
 package tutil
 
 import (
+	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
 	"fmt"
@@ -23,6 +24,13 @@ func Md5(data string) string {
 
 func Sha1(data string) string {
 	h := sha1.New() // md5加密类似md5.New()
+	h.Write([]byte(data))
+
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func HmacSha1(key, data string) string {
+	h := hmac.New(sha1.New, key)
 	h.Write([]byte(data))
 
 	return fmt.Sprintf("%x", h.Sum(nil))
