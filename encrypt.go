@@ -12,26 +12,25 @@ import (
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
-	"fmt"
 )
 
-func Md5(data []byte) string {
+func Md5(data []byte) []byte {
 	h := md5.New()
 	h.Write([]byte(data))
 
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return h.Sum(nil)
 }
 
-func Sha1(data []byte) string {
-	h := sha1.New() // md5加密类似md5.New()
+func Sha1(data []byte) []byte {
+	h := sha1.New()
 	h.Write([]byte(data))
 
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return h.Sum(nil)
 }
 
-func HmacSha1(key, data []byte) string {
+func HmacSha1(key, data []byte) []byte {
 	h := hmac.New(sha1.New, key)
 	h.Write(data)
 
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return h.Sum(nil)
 }
