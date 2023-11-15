@@ -9,56 +9,67 @@
 package tutil
 
 import (
+	"bytes"
 	"crypto/aes"
 )
 
-func generateKey(key []byte) (genKey []byte) {
-	genKey = make([]byte, 16)
+func padding(data []byte) []byte {
+	paddingCount := aes.BlockSize - len(data)%aes.BlockSize
 
-	copy(genKey, key)
+	if paddingCount == 0 {
+		return data
+	}
 
-	for i := 16; i < len(key); {
-		for j := 0; j < 16 && i < len(key); j, i = j+1, i+1 {
-			genKey[j] ^= key[i]
+	//填充数据
+	return append(data, bytes.Repeat([]byte{byte(0)}, paddingCount)...)
+}
+
+func AesEcbEncrypt(origData []byte, key []byte) ([]byte, error) {
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	origData = padding(origData)
+
+	encryptedData := make([]byte, len(origData))
+
+	tmpData := make([]byte, aes.BlockSize)
+
+	//分组分块加密
+	for index := 0; index < len(encryptedData); index += aes.BlockSize {
+		cipher.Encrypt(tmpData, encryptedData[index:index+aes.BlockSize])
+		copy(encryptedData, tmpData)
+	}
+
+	return encryptedData, nil
+}
+
+func unPadding(data []byte) []byte {
+	for i := len(data) - 1; i >= 0; i-- {
+		if data[i] != 0 {
+			return data[:i+1]
 		}
 	}
 
-	return genKey
+	return nil
 }
 
-func AesEcbEncrypt(origData []byte, key []byte) (encrypted []byte) {
-	cipher, _ := aes.NewCipher(generateKey(key))
-	length := (len(origData) + aes.BlockSize) / aes.BlockSize
-
-	plain := make([]byte, length*aes.BlockSize)
-	copy(plain, origData)
-
-	pad := byte(len(plain) - len(origData))
-	for i := len(origData); i < len(plain); i++ {
-		plain[i] = pad
+func AesEcbDecrypt(encryptedData []byte, key []byte) ([]byte, error) {
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
 	}
 
-	encrypted = make([]byte, len(plain))
+	origData := make([]byte, len(encryptedData))
 
-	// 分组分块加密
-	for bs, be := 0, cipher.BlockSize(); bs <= len(origData); bs, be = bs+cipher.BlockSize(), be+cipher.BlockSize() {
-		cipher.Encrypt(encrypted[bs:be], plain[bs:be])
+	tmpData := make([]byte, aes.BlockSize)
+
+	//分组分块解密
+	for index := 0; index < len(encryptedData); index += aes.BlockSize {
+		cipher.Decrypt(tmpData, encryptedData[index:index+aes.BlockSize])
+		copy(origData, tmpData)
 	}
 
-	return encrypted
-}
-func AesEcbDecrypt(encrypted []byte, key []byte) (decrypted []byte) {
-	cipher, _ := aes.NewCipher(generateKey(key))
-	decrypted = make([]byte, len(encrypted))
-
-	for bs, be := 0, cipher.BlockSize(); bs < len(encrypted); bs, be = bs+cipher.BlockSize(), be+cipher.BlockSize() {
-		cipher.Decrypt(decrypted[bs:be], encrypted[bs:be])
-	}
-
-	trim := 0
-	if len(decrypted) > 0 {
-		trim = len(decrypted) - int(decrypted[len(decrypted)-1])
-	}
-
-	return decrypted[:trim]
+	return unPadding(origData), nil
 }
