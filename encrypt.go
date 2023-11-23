@@ -34,3 +34,10 @@ func HmacSha1(key, data []byte) []byte {
 
 	return h.Sum(nil)
 }
+
+func HmacMd5(key, data []byte) []byte {
+	h := hmac.New(md5.New, key)
+	h.Write(data)
+
+	return h.Sum(nil)
+}
