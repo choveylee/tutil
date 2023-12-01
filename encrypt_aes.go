@@ -11,6 +11,7 @@ package tutil
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/cipher"
 	"errors"
 )
 
@@ -40,6 +41,69 @@ func DecryptAES(cipherText, key []byte) ([]byte, error) {
 	return plainText, nil
 }
 
+type ecbBlockMode struct {
+	block cipher.Block
+
+	blockSize int
+}
+
+func newEcbBlockMode(block cipher.Block) *ecbBlockMode {
+	return &ecbBlockMode{
+		block:     block,
+		blockSize: block.BlockSize(),
+	}
+}
+
+type ecbEncryptor ecbBlockMode
+
+func newEcbEncryptor(block cipher.Block) cipher.BlockMode {
+	return (*ecbEncryptor)(newEcbBlockMode(block))
+}
+
+func (ecb *ecbEncryptor) BlockSize() int {
+	return ecb.blockSize
+}
+
+func (ecb *ecbEncryptor) CryptBlocks(dst, src []byte) {
+	if len(src)%ecb.blockSize != 0 {
+		panic("crypto/cipher: input not full blocks")
+	}
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
+	for len(src) > 0 {
+		ecb.block.Encrypt(dst, src[:ecb.blockSize])
+		src = src[ecb.blockSize:]
+		dst = dst[ecb.blockSize:]
+	}
+}
+
+type ecbDecryptor ecbBlockMode
+
+func newEcbDecryptor(block cipher.Block) cipher.BlockMode {
+	return (*ecbDecryptor)(newEcbBlockMode(block))
+}
+
+func (ecb *ecbDecryptor) BlockSize() int {
+	return ecb.blockSize
+}
+
+func (ecb *ecbDecryptor) CryptBlocks(dst, src []byte) {
+	if len(src)%ecb.blockSize != 0 {
+		panic("crypto/cipher: input not full blocks")
+	}
+
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
+
+	for len(src) > 0 {
+		ecb.block.Decrypt(dst, src[:ecb.blockSize])
+		src = src[ecb.blockSize:]
+		dst = dst[ecb.blockSize:]
+	}
+}
+
 func PKCS5Padding(cipherText []byte, blockSize int) []byte {
 	padding := blockSize - len(cipherText)%blockSize
 
@@ -54,7 +118,6 @@ func PKCS5UnPadding(plainText []byte) ([]byte, error) {
 		return plainText, nil
 	}
 
-	// TODO verify padding
 	unPadding := int(plainText[lens-1])
 	if unPadding > lens {
 		return nil, errors.New("unpadding error")
@@ -69,20 +132,13 @@ func AesEcbEncrypt(plainText, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	blockSize := block.BlockSize()
+	blockMode := newEcbEncryptor(block)
 
-	plainText = PKCS5Padding(plainText, blockSize)
+	plainText = PKCS5Padding(plainText, block.BlockSize())
 
 	cipherText := make([]byte, len(plainText))
 
-	block.Encrypt(cipherText, plainText)
-
-	for len(plainText) > 0 {
-		block.Decrypt(cipherText, plainText[:blockSize])
-
-		plainText = plainText[blockSize:]
-		cipherText = cipherText[blockSize:]
-	}
+	blockMode.CryptBlocks(cipherText, plainText)
 
 	return cipherText, nil
 }
@@ -93,16 +149,11 @@ func AesEcbDecrypt(cipherText, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	blockSize := block.BlockSize()
-
 	plainText := make([]byte, len(cipherText))
 
-	for len(cipherText) > 0 {
-		block.Decrypt(plainText, cipherText[:blockSize])
+	blockMode := newEcbDecryptor(block)
 
-		cipherText = cipherText[blockSize:]
-		plainText = plainText[blockSize:]
-	}
+	blockMode.CryptBlocks(plainText, cipherText)
 
 	plainText, err = PKCS5UnPadding(plainText)
 	if err != nil {
