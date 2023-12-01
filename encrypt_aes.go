@@ -13,6 +13,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"errors"
+	"fmt"
+	"strings"
 )
 
 func AesEncrypt(plainText, key []byte) ([]byte, error) {
@@ -124,6 +126,16 @@ func PKCS5UnPadding(plainText []byte) ([]byte, error) {
 	}
 
 	return plainText[:(lens - unPadding)], nil
+}
+
+func GetAesKey(key string) string {
+	if len(key) > 16 {
+		return key[0:16]
+	} else if len(key) < 16 {
+		return fmt.Sprintf("%s%s", key, strings.Repeat("0", 16-len(key)))
+	}
+
+	return key
 }
 
 func AesEcbEncrypt(plainText, key []byte) ([]byte, error) {
