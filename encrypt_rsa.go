@@ -175,8 +175,8 @@ func RsaDecrypt(cipherText, key []byte) ([]byte, error) {
 	return plainText, nil
 }
 
-func RsaSignature(keyType int, cipherText, key []byte) ([]byte, error) {
-	block, _ := pem.Decode([]byte(key))
+func RsaSignature(cipherText, key []byte) ([]byte, error) {
+	block, _ := pem.Decode(key)
 
 	var privateKey *rsa.PrivateKey
 
