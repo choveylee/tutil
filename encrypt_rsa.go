@@ -23,10 +23,17 @@ const (
 	PublicKeyPKCS1
 )
 
-var rsaPublicKeyType = PublicKeyPKCS1
+const (
+	PrivateKeyPKCS1 = iota
+	PrivateKeyPKCS8
+)
 
-func ResetRsaKeyType(publicKeyType int) {
+var rsaPublicKeyType = PublicKeyPKCS1
+var rsaPrivateKeyType = PrivateKeyPKCS1
+
+func ResetRsaKeyType(publicKeyType int, privateKeyType int) {
 	rsaPublicKeyType = publicKeyType
+	rsaPrivateKeyType = privateKeyType
 }
 
 func RSAKeyGenerator(bits int) error {
@@ -39,7 +46,16 @@ func RSAKeyGenerator(bits int) error {
 
 	//保存私钥
 	//通过x509标准将得到的ras私钥序列化为ASN.1 的 DER编码字符串
-	X509PrivateKey := x509.MarshalPKCS1PrivateKey(privateKey)
+	var X509PrivateKey []byte
+
+	if rsaPrivateKeyType == PrivateKeyPKCS1 {
+		X509PrivateKey = x509.MarshalPKCS1PrivateKey(privateKey)
+	} else {
+		X509PrivateKey, err = x509.MarshalPKCS8PrivateKey(privateKey)
+		if err != nil {
+			return err
+		}
+	}
 
 	//使用pem格式对x509输出的内容进行编码
 	//创建文件保存私钥
@@ -110,7 +126,6 @@ func RsaEncrypt(plainText, key []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		//类型断言
 		publicKey = publicKeyInterface.(*rsa.PublicKey)
 	} else {
 		publicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
@@ -132,10 +147,23 @@ func RsaDecrypt(cipherText, key []byte) ([]byte, error) {
 	//pem解码
 	block, _ := pem.Decode(key)
 
+	var privateKey *rsa.PrivateKey
+
+	var err error
+
 	//X509解码
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, err
+	if rsaPrivateKeyType == PrivateKeyPKCS1 {
+		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		privateInterface, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		privateKey = privateInterface.(*rsa.PrivateKey)
 	}
 
 	//对密文进行解密
@@ -147,12 +175,25 @@ func RsaDecrypt(cipherText, key []byte) ([]byte, error) {
 	return plainText, nil
 }
 
-func RsaSignature(cipherText, key []byte) ([]byte, error) {
+func RsaSignature(keyType int, cipherText, key []byte) ([]byte, error) {
 	block, _ := pem.Decode([]byte(key))
 
-	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, err
+	var privateKey *rsa.PrivateKey
+
+	var err error
+
+	if rsaPrivateKeyType == PrivateKeyPKCS1 {
+		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		privateInterface, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+
+		privateKey = privateInterface.(*rsa.PrivateKey)
 	}
 
 	// sha256 加密方式，必须与 下面的 crypto.SHA256 对应
