@@ -12,6 +12,7 @@ import (
 	"crypto/hmac"
 	"crypto/md5"
 	"crypto/sha1"
+	"crypto/sha256"
 )
 
 func Md5(data []byte) []byte {
@@ -30,6 +31,13 @@ func Sha1(data []byte) []byte {
 
 func HmacSha1(key, data []byte) []byte {
 	h := hmac.New(sha1.New, key)
+	h.Write(data)
+
+	return h.Sum(nil)
+}
+
+func HmacSha256(key, data []byte) []byte {
+	h := hmac.New(sha256.New, key)
 	h.Write(data)
 
 	return h.Sum(nil)
