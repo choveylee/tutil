@@ -193,6 +193,10 @@ func AesCbcEncrypt(plainText, key, iv []byte) ([]byte, error) {
 
 	cipherText := make([]byte, len(plainText))
 
+	if len(plainText)%blockMode.BlockSize() != 0 {
+		return nil, fmt.Errorf("input not full blocks")
+	}
+
 	blockMode.CryptBlocks(cipherText, plainText)
 
 	return cipherText, nil
@@ -213,6 +217,10 @@ func AesCbcDecrypt(cipherText, key, iv []byte) ([]byte, error) {
 	blockMode := cipher.NewCBCDecrypter(block, iv)
 
 	plainText := make([]byte, len(cipherText))
+
+	if len(plainText)%blockMode.BlockSize() != 0 {
+		return nil, fmt.Errorf("input not full blocks")
+	}
 
 	blockMode.CryptBlocks(plainText, cipherText)
 
