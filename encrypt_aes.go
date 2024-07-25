@@ -175,7 +175,7 @@ func AesEcbDecrypt(cipherText, key []byte) ([]byte, error) {
 	return plainText, nil
 }
 
-func AesCbcEncrypt(plainText, key []byte) ([]byte, error) {
+func AesCbcEncrypt(plainText, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -185,7 +185,11 @@ func AesCbcEncrypt(plainText, key []byte) ([]byte, error) {
 
 	plainText = PKCS5Padding(plainText, blockSize)
 
-	blockMode := cipher.NewCBCEncrypter(block, key[:blockSize])
+	if len(iv) == 0 {
+		iv = key[:blockSize]
+	}
+
+	blockMode := cipher.NewCBCEncrypter(block, iv)
 
 	cipherText := make([]byte, len(plainText))
 
@@ -194,15 +198,19 @@ func AesCbcEncrypt(plainText, key []byte) ([]byte, error) {
 	return cipherText, nil
 }
 
-func AesCbcDecrypt(cipherText, key []byte) ([]byte, error) {
+func AesCbcDecrypt(cipherText, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	blockSize := block.BlockSize()
+	if len(iv) == 0 {
+		blockSize := block.BlockSize()
 
-	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
+		iv = key[:blockSize]
+	}
+
+	blockMode := cipher.NewCBCDecrypter(block, iv)
 
 	plainText := make([]byte, len(cipherText))
 
