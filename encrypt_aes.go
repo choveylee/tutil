@@ -121,7 +121,7 @@ func PKCS5UnPadding(plainText []byte) ([]byte, error) {
 	}
 
 	unPadding := int(plainText[lens-1])
-	if unPadding > lens {
+	if unPadding > lens || unPadding <= 0 {
 		return nil, errors.New("unpadding error")
 	}
 
