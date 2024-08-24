@@ -14,6 +14,43 @@ import (
 	"github.com/tjfoc/gmsm/sm4"
 )
 
+func Sm4EcbEncrypt(plainText, key []byte) ([]byte, error) {
+	block, err := sm4.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	blockMode := newEcbEncryptor(block)
+
+	plainText = PKCS5Padding(plainText, block.BlockSize())
+
+	cipherText := make([]byte, len(plainText))
+
+	blockMode.CryptBlocks(cipherText, plainText)
+
+	return cipherText, nil
+}
+
+func Sm4EcbDecrypt(cipherText, key []byte) ([]byte, error) {
+	block, err := sm4.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	plainText := make([]byte, len(cipherText))
+
+	blockMode := newEcbDecryptor(block)
+
+	blockMode.CryptBlocks(plainText, cipherText)
+
+	plainText, err = PKCS5UnPadding(plainText)
+	if err != nil {
+		return nil, err
+	}
+
+	return plainText, nil
+}
+
 func Sm4CbcEncrypt(plainText, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
