@@ -194,7 +194,7 @@ func AesEcbDecrypt(cipherText, key []byte) ([]byte, error) {
 	return plainText, nil
 }
 
-func AesCbcEncrypt(plainText, key, iv []byte) ([]byte, error) {
+func AesCbcEncryptPKCS5(plainText, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -221,7 +221,7 @@ func AesCbcEncrypt(plainText, key, iv []byte) ([]byte, error) {
 	return cipherText, nil
 }
 
-func AesCbcDecrypt(cipherText, key, iv []byte) ([]byte, error) {
+func AesCbcDecryptPKCS5(cipherText, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -244,6 +244,63 @@ func AesCbcDecrypt(cipherText, key, iv []byte) ([]byte, error) {
 	blockMode.CryptBlocks(plainText, cipherText)
 
 	plainText, err = PKCS5UnPadding(plainText)
+	if err != nil {
+		return nil, err
+	}
+
+	return plainText, nil
+}
+
+func AesCbcEncryptZero(plainText, key, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	blockSize := block.BlockSize()
+
+	plainText = ZeroPadding(plainText, blockSize)
+
+	if len(iv) == 0 {
+		iv = key[:blockSize]
+	}
+
+	blockMode := cipher.NewCBCEncrypter(block, iv)
+
+	cipherText := make([]byte, len(plainText))
+
+	if len(plainText)%blockMode.BlockSize() != 0 {
+		return nil, fmt.Errorf("input not full blocks")
+	}
+
+	blockMode.CryptBlocks(cipherText, plainText)
+
+	return cipherText, nil
+}
+
+func AesCbcDecryptZero(cipherText, key, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(iv) == 0 {
+		blockSize := block.BlockSize()
+
+		iv = key[:blockSize]
+	}
+
+	blockMode := cipher.NewCBCDecrypter(block, iv)
+
+	plainText := make([]byte, len(cipherText))
+
+	if len(plainText)%blockMode.BlockSize() != 0 {
+		return nil, fmt.Errorf("input not full blocks")
+	}
+
+	blockMode.CryptBlocks(plainText, cipherText)
+
+	plainText, err = ZeroUnPadding(plainText)
 	if err != nil {
 		return nil, err
 	}
