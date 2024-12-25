@@ -106,6 +106,25 @@ func (ecb *ecbDecryptor) CryptBlocks(dst, src []byte) {
 	}
 }
 
+func ZeroPadding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+
+	padText := bytes.Repeat([]byte{0}, padding)
+
+	return append(ciphertext, padText...)
+}
+
+func ZeroUnPadding(plainText []byte) ([]byte, error) {
+	lens := len(plainText)
+	if lens == 0 {
+		return plainText, nil
+	}
+
+	return bytes.TrimFunc(plainText, func(r rune) bool {
+		return r == rune(0)
+	}), nil
+}
+
 func PKCS5Padding(cipherText []byte, blockSize int) []byte {
 	padding := blockSize - len(cipherText)%blockSize
 
