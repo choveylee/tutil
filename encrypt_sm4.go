@@ -22,7 +22,7 @@ func Sm4EcbEncrypt(plainText, key []byte) ([]byte, error) {
 
 	blockMode := newEcbEncryptor(block)
 
-	plainText = PKCS5Padding(plainText, block.BlockSize())
+	plainText = PKCS7Padding(plainText, block.BlockSize())
 
 	cipherText := make([]byte, len(plainText))
 
@@ -43,7 +43,7 @@ func Sm4EcbDecrypt(cipherText, key []byte) ([]byte, error) {
 
 	blockMode.CryptBlocks(plainText, cipherText)
 
-	plainText, err = PKCS5UnPadding(plainText)
+	plainText, err = PKCS7UnPadding(plainText)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func Sm4CbcEncrypt(plainText, key, iv []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	paddingData := PKCS5Padding(plainText, block.BlockSize())
+	paddingData := PKCS7Padding(plainText, block.BlockSize())
 
 	blockMode := cipher.NewCBCEncrypter(block, iv)
 
@@ -77,7 +77,7 @@ func Sm4CbcDecrypt(cipherText, key, iv []byte) ([]byte, error) {
 
 	blockMode.CryptBlocks(cipherText, cipherText)
 
-	plainText, err := PKCS5UnPadding(cipherText)
+	plainText, err := PKCS7UnPadding(cipherText)
 	if err != nil {
 		return nil, err
 	}

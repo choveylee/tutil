@@ -125,7 +125,7 @@ func ZeroUnPadding(plainText []byte) ([]byte, error) {
 	}), nil
 }
 
-func PKCS5Padding(cipherText []byte, blockSize int) []byte {
+func PKCS7Padding(cipherText []byte, blockSize int) []byte {
 	padding := blockSize - len(cipherText)%blockSize
 
 	padText := bytes.Repeat([]byte{byte(padding)}, padding)
@@ -133,7 +133,7 @@ func PKCS5Padding(cipherText []byte, blockSize int) []byte {
 	return append(cipherText, padText...)
 }
 
-func PKCS5UnPadding(plainText []byte) ([]byte, error) {
+func PKCS7UnPadding(plainText []byte) ([]byte, error) {
 	lens := len(plainText)
 	if lens == 0 {
 		return plainText, nil
@@ -141,7 +141,7 @@ func PKCS5UnPadding(plainText []byte) ([]byte, error) {
 
 	unPadding := int(plainText[lens-1])
 	if unPadding > lens || unPadding <= 0 {
-		return nil, errors.New("unpadding error")
+		return nil, errors.New("invalid padding size")
 	}
 
 	return plainText[:(lens - unPadding)], nil
@@ -165,7 +165,7 @@ func AesEcbEncrypt(plainText, key []byte) ([]byte, error) {
 
 	blockMode := newEcbEncryptor(block)
 
-	plainText = PKCS5Padding(plainText, block.BlockSize())
+	plainText = PKCS7Padding(plainText, block.BlockSize())
 
 	cipherText := make([]byte, len(plainText))
 
@@ -186,7 +186,7 @@ func AesEcbDecrypt(cipherText, key []byte) ([]byte, error) {
 
 	blockMode.CryptBlocks(plainText, cipherText)
 
-	plainText, err = PKCS5UnPadding(plainText)
+	plainText, err = PKCS7UnPadding(plainText)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func AesEcbDecrypt(cipherText, key []byte) ([]byte, error) {
 	return plainText, nil
 }
 
-func AesCbcEncryptPKCS5(plainText, key, iv []byte) ([]byte, error) {
+func AesCbcEncryptPKCS7(plainText, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -202,7 +202,7 @@ func AesCbcEncryptPKCS5(plainText, key, iv []byte) ([]byte, error) {
 
 	blockSize := block.BlockSize()
 
-	plainText = PKCS5Padding(plainText, blockSize)
+	plainText = PKCS7Padding(plainText, blockSize)
 
 	if len(iv) == 0 {
 		iv = key[:blockSize]
@@ -221,7 +221,7 @@ func AesCbcEncryptPKCS5(plainText, key, iv []byte) ([]byte, error) {
 	return cipherText, nil
 }
 
-func AesCbcDecryptPKCS5(cipherText, key, iv []byte) ([]byte, error) {
+func AesCbcDecryptPKCS7(cipherText, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -243,7 +243,7 @@ func AesCbcDecryptPKCS5(cipherText, key, iv []byte) ([]byte, error) {
 
 	blockMode.CryptBlocks(plainText, cipherText)
 
-	plainText, err = PKCS5UnPadding(plainText)
+	plainText, err = PKCS7UnPadding(plainText)
 	if err != nil {
 		return nil, err
 	}
