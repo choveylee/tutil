@@ -14,7 +14,7 @@ import (
 	"github.com/tjfoc/gmsm/sm4"
 )
 
-func Sm4EcbEncrypt(plainText, key []byte) ([]byte, error) {
+func Sm4EcbEncryptPKCS7(plainText, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func Sm4EcbEncrypt(plainText, key []byte) ([]byte, error) {
 	return cipherText, nil
 }
 
-func Sm4EcbDecrypt(cipherText, key []byte) ([]byte, error) {
+func Sm4EcbDecryptPKCS7(cipherText, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,44 @@ func Sm4EcbDecrypt(cipherText, key []byte) ([]byte, error) {
 	return plainText, nil
 }
 
-func Sm4CbcEncrypt(plainText, key, iv []byte) ([]byte, error) {
+func Sm4EcbEncryptZero(plainText, key []byte) ([]byte, error) {
+	block, err := sm4.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	blockMode := newEcbEncryptor(block)
+
+	plainText = ZeroPadding(plainText, block.BlockSize())
+
+	cipherText := make([]byte, len(plainText))
+
+	blockMode.CryptBlocks(cipherText, plainText)
+
+	return cipherText, nil
+}
+
+func Sm4EcbDecryptZero(cipherText, key []byte) ([]byte, error) {
+	block, err := sm4.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	plainText := make([]byte, len(cipherText))
+
+	blockMode := newEcbDecryptor(block)
+
+	blockMode.CryptBlocks(plainText, cipherText)
+
+	plainText, err = ZeroUnPadding(plainText)
+	if err != nil {
+		return nil, err
+	}
+
+	return plainText, nil
+}
+
+func Sm4CbcEncryptPKCS7(plainText, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -68,7 +105,7 @@ func Sm4CbcEncrypt(plainText, key, iv []byte) ([]byte, error) {
 	return cipherText, nil
 }
 
-func Sm4CbcDecrypt(cipherText, key, iv []byte) ([]byte, error) {
+func Sm4CbcDecryptPKCS7(cipherText, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -78,6 +115,40 @@ func Sm4CbcDecrypt(cipherText, key, iv []byte) ([]byte, error) {
 	blockMode.CryptBlocks(cipherText, cipherText)
 
 	plainText, err := PKCS7UnPadding(cipherText)
+	if err != nil {
+		return nil, err
+	}
+
+	return plainText, nil
+}
+
+func Sm4CbcEncryptZero(plainText, key, iv []byte) ([]byte, error) {
+	block, err := sm4.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	paddingData := ZeroPadding(plainText, block.BlockSize())
+
+	blockMode := cipher.NewCBCEncrypter(block, iv)
+
+	cipherText := make([]byte, len(paddingData))
+
+	blockMode.CryptBlocks(cipherText, paddingData)
+
+	return cipherText, nil
+}
+
+func Sm4CbcDecryptZero(cipherText, key, iv []byte) ([]byte, error) {
+	block, err := sm4.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	blockMode := cipher.NewCBCDecrypter(block, iv)
+
+	blockMode.CryptBlocks(cipherText, cipherText)
+
+	plainText, err := ZeroUnPadding(cipherText)
 	if err != nil {
 		return nil, err
 	}

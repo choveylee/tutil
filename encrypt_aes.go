@@ -157,7 +157,7 @@ func GetAesKey(key string) string {
 	return key
 }
 
-func AesEcbEncrypt(plainText, key []byte) ([]byte, error) {
+func AesEcbEncryptPKCS7(plainText, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -174,7 +174,7 @@ func AesEcbEncrypt(plainText, key []byte) ([]byte, error) {
 	return cipherText, nil
 }
 
-func AesEcbDecrypt(cipherText, key []byte) ([]byte, error) {
+func AesEcbDecryptPKCS7(cipherText, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -187,6 +187,43 @@ func AesEcbDecrypt(cipherText, key []byte) ([]byte, error) {
 	blockMode.CryptBlocks(plainText, cipherText)
 
 	plainText, err = PKCS7UnPadding(plainText)
+	if err != nil {
+		return nil, err
+	}
+
+	return plainText, nil
+}
+
+func AesEcbEncryptZero(plainText, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	blockMode := newEcbEncryptor(block)
+
+	plainText = ZeroPadding(plainText, block.BlockSize())
+
+	cipherText := make([]byte, len(plainText))
+
+	blockMode.CryptBlocks(cipherText, plainText)
+
+	return cipherText, nil
+}
+
+func AesEcbDecryptZero(cipherText, key []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+
+	plainText := make([]byte, len(cipherText))
+
+	blockMode := newEcbDecryptor(block)
+
+	blockMode.CryptBlocks(plainText, cipherText)
+
+	plainText, err = ZeroUnPadding(plainText)
 	if err != nil {
 		return nil, err
 	}
