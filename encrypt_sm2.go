@@ -15,6 +15,7 @@ import (
 	"github.com/tjfoc/gmsm/x509"
 )
 
+// Sm2Decrypt decrypts SM2 ciphertext (C1C3C2 layout) using a hex-encoded private key.
 func Sm2Decrypt(cipherText []byte, hexPrivateKey string) ([]byte, error) {
 	privateKey, err := x509.ReadPrivateKeyFromHex(hexPrivateKey)
 	if err != nil {
@@ -29,6 +30,7 @@ func Sm2Decrypt(cipherText []byte, hexPrivateKey string) ([]byte, error) {
 	return plainText, nil
 }
 
+// Sm2Encrypt encrypts plainText with SM2 using a hex-encoded public key; output uses C1C3C2.
 func Sm2Encrypt(plainText []byte, hexPublicKey string) ([]byte, error) {
 	publicKey, err := x509.ReadPublicKeyFromHex(hexPublicKey)
 	if err != nil {
@@ -43,6 +45,7 @@ func Sm2Encrypt(plainText []byte, hexPublicKey string) ([]byte, error) {
 	return cipherText, nil
 }
 
+// GenSm2KeyPair generates an SM2 key pair, returning (privateKeyHex, publicKeyHex, err).
 func GenSm2KeyPair() (string, string, error) {
 	privateKey, err := sm2.GenerateKey(rand.Reader)
 	if err != nil {

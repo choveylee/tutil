@@ -12,7 +12,9 @@ import (
 	"net/url"
 )
 
-func DsnEncode(dsn string) string {
+// MysqlDsnEncode applies url.QueryEscape to the password substring between the first ':' and the last '@'.
+// Works for some user:password@host forms; with a URI scheme (e.g. mysql://) the first ':' may be wrong—validate inputs.
+func MysqlDsnEncode(dsn string) string {
 	password := ""
 	var i, j int
 
