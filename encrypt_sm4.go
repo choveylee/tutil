@@ -1,6 +1,6 @@
 /**
  * @Author: lidonglin
- * @Description:
+ * @Description: SM4 ECB/CBC with PKCS#7 or zero padding (legacy; ECB weak).
  * @File:  encrypt_sm4.go
  * @Version: 1.0.0
  * @Date: 2024/8/24 12:37:38
@@ -15,8 +15,8 @@ import (
 	"github.com/tjfoc/gmsm/sm4"
 )
 
-// sm4CheckCBCIV ensures len(iv) equals blockSize (16 for SM4).
-func sm4CheckCBCIV(iv []byte, blockSize int) error {
+// sm4CheckCbcIV returns an error if len(iv) is not equal to blockSize.
+func sm4CheckCbcIV(iv []byte, blockSize int) error {
 	if len(iv) != blockSize {
 		return fmt.Errorf("sm4 cbc: iv length %d must equal block size %d", len(iv), blockSize)
 	}
@@ -24,112 +24,111 @@ func sm4CheckCBCIV(iv []byte, blockSize int) error {
 	return nil
 }
 
-// Sm4EcbEncryptPKCS7 encrypts with SM4-ECB and PKCS#7 padding. key must be 16 bytes.
-// ECB is weak for general confidentiality; prefer for legacy interoperability only.
-func Sm4EcbEncryptPKCS7(plainText, key []byte) ([]byte, error) {
+// Sm4EcbEncryptPKCS7 encrypts plaintext with SM4 in ECB mode and PKCS#7 padding. key must be 16 bytes (ECB is weak for general use).
+func Sm4EcbEncryptPKCS7(plaintext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	plainText = PKCS7Padding(plainText, block.BlockSize())
+	plaintext = PKCS7Padding(plaintext, block.BlockSize())
 
-	cipherText := make([]byte, len(plainText))
+	ciphertext := make([]byte, len(plaintext))
 
-	if err := ecbEncryptBlocks(block, cipherText, plainText); err != nil {
+	if err := ecbEncryptBlocks(block, ciphertext, plaintext); err != nil {
 		return nil, err
 	}
 
-	return cipherText, nil
+	return ciphertext, nil
 }
 
-// Sm4EcbDecryptPKCS7 decrypts output from Sm4EcbEncryptPKCS7.
-func Sm4EcbDecryptPKCS7(cipherText, key []byte) ([]byte, error) {
+// Sm4EcbDecryptPKCS7 decrypts ciphertext produced by Sm4EcbEncryptPKCS7.
+func Sm4EcbDecryptPKCS7(ciphertext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	plainText := make([]byte, len(cipherText))
+	plaintext := make([]byte, len(ciphertext))
 
-	if err := ecbDecryptBlocks(block, plainText, cipherText); err != nil {
+	if err := ecbDecryptBlocks(block, plaintext, ciphertext); err != nil {
 		return nil, err
 	}
 
 	blockSize := block.BlockSize()
 
-	plainText, err = PKCS7UnPadding(plainText, blockSize)
+	plaintext, err = PKCS7UnPadding(plaintext, blockSize)
 	if err != nil {
 		return nil, err
 	}
 
-	return plainText, nil
+	return plaintext, nil
 }
 
-// Sm4EcbEncryptZero encrypts with SM4-ECB and zero padding.
-func Sm4EcbEncryptZero(plainText, key []byte) ([]byte, error) {
+// Sm4EcbEncryptZero encrypts plaintext with SM4-ECB after ZeroPadding. key must be 16 bytes.
+func Sm4EcbEncryptZero(plaintext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	plainText = ZeroPadding(plainText, block.BlockSize())
+	plaintext = ZeroPadding(plaintext, block.BlockSize())
 
-	cipherText := make([]byte, len(plainText))
+	ciphertext := make([]byte, len(plaintext))
 
-	if err := ecbEncryptBlocks(block, cipherText, plainText); err != nil {
+	if err := ecbEncryptBlocks(block, ciphertext, plaintext); err != nil {
 		return nil, err
 	}
 
-	return cipherText, nil
+	return ciphertext, nil
 }
 
-// Sm4EcbDecryptZero decrypts SM4-ECB ciphertext with zero-padding removal.
-func Sm4EcbDecryptZero(cipherText, key []byte) ([]byte, error) {
+// Sm4EcbDecryptZero decrypts ciphertext produced by Sm4EcbEncryptZero and strips zero padding.
+func Sm4EcbDecryptZero(ciphertext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	plainText := make([]byte, len(cipherText))
+	plaintext := make([]byte, len(ciphertext))
 
-	if err := ecbDecryptBlocks(block, plainText, cipherText); err != nil {
+	if err := ecbDecryptBlocks(block, plaintext, ciphertext); err != nil {
 		return nil, err
 	}
 
-	plainText, err = ZeroUnPadding(plainText)
+	plaintext, err = ZeroUnPadding(plaintext)
 	if err != nil {
 		return nil, err
 	}
 
-	return plainText, nil
+	return plaintext, nil
 }
 
-// Sm4CbcEncryptPKCS7 encrypts with SM4-CBC and PKCS#7. key and iv must be 16 bytes (iv checked by sm4CheckCBCIV).
-func Sm4CbcEncryptPKCS7(plainText, key, iv []byte) ([]byte, error) {
+// Sm4CbcEncryptPKCS7 encrypts plaintext with SM4-CBC and PKCS#7 padding. key and iv must each be 16 bytes.
+func Sm4CbcEncryptPKCS7(plaintext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
 	blockSize := block.BlockSize()
-	if err := sm4CheckCBCIV(iv, blockSize); err != nil {
+	if err := sm4CheckCbcIV(iv, blockSize); err != nil {
 		return nil, err
 	}
 
-	paddingData := PKCS7Padding(plainText, blockSize)
+	paddingData := PKCS7Padding(plaintext, blockSize)
 
 	blockMode := cipher.NewCBCEncrypter(block, iv)
 
-	cipherText := make([]byte, len(paddingData))
+	ciphertext := make([]byte, len(paddingData))
 
-	blockMode.CryptBlocks(cipherText, paddingData)
+	blockMode.CryptBlocks(ciphertext, paddingData)
 
-	return cipherText, nil
+	return ciphertext, nil
 }
 
-// Sm4CbcDecryptPKCS7 decrypts SM4-CBC + PKCS#7 without overwriting the caller's cipherText slice.
-func Sm4CbcDecryptPKCS7(cipherText, key, iv []byte) ([]byte, error) {
+// Sm4CbcDecryptPKCS7 decrypts SM4-CBC ciphertext with PKCS#7 padding; it does not overwrite the ciphertext slice.
+func Sm4CbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -137,29 +136,29 @@ func Sm4CbcDecryptPKCS7(cipherText, key, iv []byte) ([]byte, error) {
 
 	blockSize := block.BlockSize()
 
-	if err := sm4CheckCBCIV(iv, blockSize); err != nil {
+	if err := sm4CheckCbcIV(iv, blockSize); err != nil {
 		return nil, err
 	}
 
-	if len(cipherText)%blockSize != 0 {
-		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d is not a multiple of block size %d", len(cipherText), blockSize)
+	if len(ciphertext)%blockSize != 0 {
+		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d is not a multiple of block size %d", len(ciphertext), blockSize)
 	}
 
 	blockMode := cipher.NewCBCDecrypter(block, iv)
 
-	plainBuf := make([]byte, len(cipherText))
-	blockMode.CryptBlocks(plainBuf, cipherText)
+	plainBuf := make([]byte, len(ciphertext))
+	blockMode.CryptBlocks(plainBuf, ciphertext)
 
-	plainText, err := PKCS7UnPadding(plainBuf, blockSize)
+	plaintext, err := PKCS7UnPadding(plainBuf, blockSize)
 	if err != nil {
 		return nil, err
 	}
 
-	return plainText, nil
+	return plaintext, nil
 }
 
-// Sm4CbcEncryptZero encrypts with SM4-CBC and zero padding; 16-byte key and iv.
-func Sm4CbcEncryptZero(plainText, key, iv []byte) ([]byte, error) {
+// Sm4CbcEncryptZero encrypts plaintext with SM4-CBC after ZeroPadding. key and iv must each be 16 bytes.
+func Sm4CbcEncryptZero(plaintext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -167,23 +166,23 @@ func Sm4CbcEncryptZero(plainText, key, iv []byte) ([]byte, error) {
 
 	blockSize := block.BlockSize()
 
-	if err := sm4CheckCBCIV(iv, blockSize); err != nil {
+	if err := sm4CheckCbcIV(iv, blockSize); err != nil {
 		return nil, err
 	}
 
-	paddingData := ZeroPadding(plainText, blockSize)
+	paddingData := ZeroPadding(plaintext, blockSize)
 
 	blockMode := cipher.NewCBCEncrypter(block, iv)
 
-	cipherText := make([]byte, len(paddingData))
+	ciphertext := make([]byte, len(paddingData))
 
-	blockMode.CryptBlocks(cipherText, paddingData)
+	blockMode.CryptBlocks(ciphertext, paddingData)
 
-	return cipherText, nil
+	return ciphertext, nil
 }
 
-// Sm4CbcDecryptZero decrypts SM4-CBC with zero-padding removal; does not mutate cipherText.
-func Sm4CbcDecryptZero(cipherText, key, iv []byte) ([]byte, error) {
+// Sm4CbcDecryptZero decrypts SM4-CBC ciphertext with zero padding removed; it does not overwrite the ciphertext slice.
+func Sm4CbcDecryptZero(ciphertext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -191,23 +190,23 @@ func Sm4CbcDecryptZero(cipherText, key, iv []byte) ([]byte, error) {
 
 	blockSize := block.BlockSize()
 
-	if err := sm4CheckCBCIV(iv, blockSize); err != nil {
+	if err := sm4CheckCbcIV(iv, blockSize); err != nil {
 		return nil, err
 	}
 
-	if len(cipherText)%blockSize != 0 {
-		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d is not a multiple of block size %d", len(cipherText), blockSize)
+	if len(ciphertext)%blockSize != 0 {
+		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d is not a multiple of block size %d", len(ciphertext), blockSize)
 	}
 
 	blockMode := cipher.NewCBCDecrypter(block, iv)
 
-	plainBuf := make([]byte, len(cipherText))
-	blockMode.CryptBlocks(plainBuf, cipherText)
+	plainBuf := make([]byte, len(ciphertext))
+	blockMode.CryptBlocks(plainBuf, ciphertext)
 
-	plainText, err := ZeroUnPadding(plainBuf)
+	plaintext, err := ZeroUnPadding(plainBuf)
 	if err != nil {
 		return nil, err
 	}
 
-	return plainText, nil
+	return plaintext, nil
 }

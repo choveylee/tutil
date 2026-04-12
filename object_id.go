@@ -19,38 +19,39 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
-// Oid is a 12-byte MongoDB ObjectID; interop with bson.ObjectID.
+// Oid is a 12-byte MongoDB BSON ObjectID; it converts to and from bson.ObjectID.
 type Oid [12]byte
 
-// ZeroOid is the all-zero sentinel; SQL NULL scans as ZeroOid.
+// ZeroOid is the all-zero ObjectID sentinel; database NULL scans as ZeroOid.
 var ZeroOid = Oid(bson.NilObjectID)
 
-// NewOidHex returns a new ObjectID as 24-char lowercase hex (same as bson.ObjectID.Hex).
+// NewOidHex returns a new ObjectID as a 24-character lowercase hexadecimal string (same as bson.ObjectID.Hex).
 func NewOidHex() string {
 	return bson.NewObjectID().Hex()
 }
 
-// NewOidStr returns a new ObjectID string (same 24-char lowercase hex as NewOidHex).
+// NewOidStr returns a new ObjectID as a string (same encoding as NewOidHex).
 func NewOidStr() string {
 	return Oid(bson.NewObjectID()).String()
 }
 
-// NewOid returns a new random ObjectID.
+// NewOid returns a new cryptographically random ObjectID.
 func NewOid() Oid {
 	return Oid(bson.NewObjectID())
 }
 
-// NewOidFromTimestamp builds an ObjectID (4-byte big-endian Unix seconds per Mongo, then random bytes).
+// NewOidFromTimestamp returns an ObjectID with MongoDB layout: 4-byte big-endian Unix seconds then random bytes.
 func NewOidFromTimestamp(timestamp time.Time) Oid {
 	return Oid(bson.NewObjectIDFromTimestamp(timestamp))
 }
 
-// NewOidHexFromTimestamp is NewOidFromTimestamp but returns the hex string.
+// NewOidHexFromTimestamp returns the hexadecimal string form of NewOidFromTimestamp(timestamp).
 func NewOidHexFromTimestamp(timestamp time.Time) string {
 	return NewOidFromTimestamp(timestamp).Hex()
 }
 
-// ParseOid parses 24-char hex (len 24, valid hex); on error returns (ZeroOid, err).
+// ParseOid parses id as 24 hexadecimal digits into Oid.
+// On error it returns ZeroOid and a non-nil error.
 func ParseOid(id string) (Oid, error) {
 	if len(id) != 24 {
 		return ZeroOid, fmt.Errorf("invalid oid string")
@@ -67,36 +68,36 @@ func ParseOid(id string) (Oid, error) {
 	return oid, nil
 }
 
-// ToOid parses id via ParseOid and ignores errors (invalid id becomes ZeroOid).
+// ToOid wraps ParseOid and returns ZeroOid when parsing fails.
 func ToOid(id string) Oid {
 	oid, _ := ParseOid(id)
 
 	return oid
 }
 
-// Timestamp returns Unix seconds (UTC) from the first 4 bytes.
+// Timestamp returns the Unix time in seconds (UTC) stored in the first four bytes of o.
 func (o Oid) Timestamp() time.Time {
 	unixSecs := binary.BigEndian.Uint32(o[0:4])
 
 	return time.Unix(int64(unixSecs), 0).UTC()
 }
 
-// IsZero reports whether o equals ZeroOid.
+// IsZero reports whether o is equal to ZeroOid.
 func (o Oid) IsZero() bool {
 	return bytes.Equal(o[:], ZeroOid[:])
 }
 
-// GormDataType returns "binary(12)" for GORM migrations.
+// GormDataType implements GORM schema typing and returns "binary(12)" for raw ObjectID storage.
 func (o Oid) GormDataType() string {
 	return "binary(12)"
 }
 
-// Value returns the 12 raw bytes for driver.Valuer.
+// Value implements driver.Valuer and returns the 12 raw ObjectID bytes.
 func (o Oid) Value() (driver.Value, error) {
 	return o[:], nil
 }
 
-// Scan sets o from nil (ZeroOid), []byte len 12, or 24-char hex string; otherwise errors.
+// Scan implements sql.Scanner. nil maps to ZeroOid; []byte of length 12 or a 24-digit hex string are accepted.
 func (o *Oid) Scan(val any) error {
 	if o == nil {
 		return fmt.Errorf("failed to scan oid: nil receiver")
@@ -131,12 +132,12 @@ func (o *Oid) Scan(val any) error {
 	}
 }
 
-// Hex returns 24-char lowercase hex.
+// Hex returns the 24-character lowercase hexadecimal encoding of o.
 func (o Oid) Hex() string {
 	return hex.EncodeToString(o[:])
 }
 
-// String is the same as Hex.
+// String returns the same lowercase hexadecimal form as Hex.
 func (o Oid) String() string {
 	return o.Hex()
 }

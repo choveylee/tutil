@@ -6,6 +6,9 @@
  * @Date: 2026/02/11 00:00
  */
 
+// Package tutil provides helpers for lexicographic IDs (ULID, MongoDB ObjectID), hashing and
+// symmetric/asymmetric crypto (AES, RSA, SM2, SM4), non-cryptographic random strings and integers,
+// and MySQL DSN password escaping.
 package tutil
 
 import (
@@ -17,23 +20,25 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-// Uid is a 16-byte ULID; use raw bytes or String for the canonical 26-char Base32 form.
+// Uid is a 16-byte ULID (Universally Unique Lexicographically Sortable Identifier).
+// The canonical text form is the 26-character Crockford Base32 string from String.
 type Uid [16]byte
 
-// ZeroUid is the all-zero sentinel; SQL NULL scans as ZeroUid.
+// ZeroUid is the all-zero ULID used as a sentinel; database NULL scans as ZeroUid.
 var ZeroUid = Uid(ulid.Zero)
 
-// NewUidStr returns a new ULID as a 26-char Crockford Base32 string (same as NewUid().String()).
+// NewUidStr returns a new ULID as a 26-character Crockford Base32 string (equivalent to NewUid().String()).
 func NewUidStr() string {
 	return ulid.Make().String()
 }
 
-// NewUid returns a new ULID (UTC time + default entropy, same as ulid.Make).
+// NewUid returns a new ULID using the current UTC time and default entropy (same as ulid.Make).
 func NewUid() Uid {
 	return Uid(ulid.Make())
 }
 
-// NewUidFromTimestamp builds a ULID from timestamp (UTC ms) with ulid.DefaultEntropy; on failure returns (ZeroUid, err).
+// NewUidFromTimestamp returns a ULID from timestamp in UTC with millisecond precision, using ulid.DefaultEntropy.
+// On failure (for example timestamp out of ULID range) it returns ZeroUid and a non-nil error.
 func NewUidFromTimestamp(timestamp time.Time) (Uid, error) {
 	milliSeconds := ulid.Timestamp(timestamp.UTC())
 
@@ -45,7 +50,7 @@ func NewUidFromTimestamp(timestamp time.Time) (Uid, error) {
 	return Uid(id), nil
 }
 
-// NewUidStrFromTimestamp is NewUidFromTimestamp but returns the Base32 string ("", err on failure).
+// NewUidStrFromTimestamp returns the Base32 string from NewUidFromTimestamp, or ("", err) on failure.
 func NewUidStrFromTimestamp(timestamp time.Time) (string, error) {
 	u, err := NewUidFromTimestamp(timestamp)
 	if err != nil {
@@ -55,7 +60,8 @@ func NewUidStrFromTimestamp(timestamp time.Time) (string, error) {
 	return u.String(), nil
 }
 
-// ParseUid parses a 26-char ULID with ulid.ParseStrict; on error returns (ZeroUid, err).
+// ParseUid parses id as a 26-character ULID using ulid.ParseStrict.
+// On error it returns ZeroUid and a non-nil error.
 func ParseUid(id string) (Uid, error) {
 	uid, err := ulid.ParseStrict(id)
 	if err != nil {
@@ -65,34 +71,34 @@ func ParseUid(id string) (Uid, error) {
 	return Uid(uid), nil
 }
 
-// ToUid parses id via ParseUid and ignores errors (invalid id becomes ZeroUid).
+// ToUid wraps ParseUid and returns ZeroUid when parsing fails.
 func ToUid(id string) Uid {
 	uid, _ := ParseUid(id)
 
 	return uid
 }
 
-// Timestamp returns the embedded UTC time (millisecond precision).
+// Timestamp returns the UTC time embedded in u with millisecond precision.
 func (u Uid) Timestamp() time.Time {
 	return ulid.ULID(u).Timestamp()
 }
 
-// IsZero reports whether u equals ZeroUid.
+// IsZero reports whether u is equal to ZeroUid.
 func (u Uid) IsZero() bool {
 	return bytes.Equal(u[:], ZeroUid[:])
 }
 
-// GormDataType returns "binary(16)" for GORM migrations.
+// GormDataType implements GORM schema typing and returns "binary(16)" for raw ULID storage.
 func (u Uid) GormDataType() string {
 	return "binary(16)"
 }
 
-// Value returns the 16 raw bytes for driver.Valuer.
+// Value implements driver.Valuer and returns the 16 raw ULID bytes.
 func (u Uid) Value() (driver.Value, error) {
 	return u[:], nil
 }
 
-// Scan sets u from nil (ZeroUid), []byte len 16, or 26-char ULID string; otherwise errors.
+// Scan implements sql.Scanner. nil maps to ZeroUid; []byte of length 16 (raw) or a 26-character ULID string are accepted.
 func (u *Uid) Scan(val any) error {
 	if u == nil {
 		return fmt.Errorf("failed to scan uid: nil receiver")
@@ -127,7 +133,7 @@ func (u *Uid) Scan(val any) error {
 	}
 }
 
-// String returns the canonical 26-char Crockford Base32 ULID.
+// String returns the canonical 26-character Crockford Base32 encoding of u.
 func (u Uid) String() string {
 	return ulid.ULID(u).String()
 }

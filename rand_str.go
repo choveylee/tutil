@@ -10,13 +10,13 @@ package tutil
 
 import "math/rand"
 
-// Alphabets for RandCharStr and RandNumStr.
+// randChar and randNum are byte alphabets used by RandCharStr and RandNumStr.
 var (
 	randChar = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	randNum  = []byte("0123456789")
 )
 
-// RandCharStr returns n random digits and letters; "" if n <= 0. Not crypto-safe.
+// RandCharStr returns a string of n random ASCII digits and letters, or "" if n <= 0 (not cryptographically secure).
 func RandCharStr(n int) string {
 	if n <= 0 {
 		return ""
@@ -24,16 +24,16 @@ func RandCharStr(n int) string {
 
 	data := make([]byte, n)
 
-	lens := len(randChar)
+	charLen := len(randChar)
 
 	for i := range data {
-		data[i] = randChar[rand.Intn(lens)]
+		data[i] = randChar[rand.Intn(charLen)]
 	}
 
 	return string(data)
 }
 
-// RandNumStr returns n random decimal digits; "" if n <= 0. Not crypto-safe.
+// RandNumStr returns a string of n random decimal digits, or "" if n <= 0 (not cryptographically secure).
 func RandNumStr(n int) string {
 	if n <= 0 {
 		return ""
@@ -41,16 +41,16 @@ func RandNumStr(n int) string {
 
 	data := make([]byte, n)
 
-	lens := len(randNum)
+	digitLen := len(randNum)
 
 	for i := range data {
-		data[i] = randNum[rand.Intn(lens)]
+		data[i] = randNum[rand.Intn(digitLen)]
 	}
 
 	return string(data)
 }
 
-// RandSourceStr returns n bytes sampled uniformly from source (with replacement); "" if n <= 0 or source empty. Not crypto-safe.
+// RandSourceStr returns a length-n string by sampling bytes from source with replacement, or "" if n <= 0 or source is empty (not cryptographically secure).
 func RandSourceStr(source []byte, n int) string {
 	if n <= 0 || len(source) == 0 {
 		return ""
@@ -58,10 +58,10 @@ func RandSourceStr(source []byte, n int) string {
 
 	data := make([]byte, n)
 
-	lens := len(source)
+	sourceLen := len(source)
 
 	for i := range data {
-		data[i] = source[rand.Intn(lens)]
+		data[i] = source[rand.Intn(sourceLen)]
 	}
 
 	return string(data)

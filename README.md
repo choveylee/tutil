@@ -1,109 +1,67 @@
 # tutil
 
-[English](#english) · [中文](#中文)
+[![Go Reference](https://pkg.go.dev/badge/github.com/choveylee/tutil.svg)](https://pkg.go.dev/github.com/choveylee/tutil)
 
----
+General-purpose helpers for Go: **ULIDs**, **MongoDB ObjectIDs**, hashing and HMAC, **AES** / **RSA** / **SM2** / **SM4**, non-cryptographic random values, and MySQL DSN password escaping.
 
-<a id="english"></a>
-
-## English
-
-### Overview
-
-**tutil** is a small Go utility library: hashing and HMAC, AES/SM4 block ciphers (ECB/CBC with PKCS#7 or zero padding), RSA PEM-based encrypt/sign, SM2 encrypt/decrypt, MongoDB-style `ObjectID` helpers, random string/integer helpers, and MySQL DSN password encoding.
-
-Requires **Go 1.26.1** (see `go.mod`).
-
-### Installation
+## Installation
 
 ```bash
 go get github.com/choveylee/tutil
 ```
 
-### Dependencies
+Requires **Go 1.25** or later (see [`go.mod`](go.mod)).
 
-| Module | Usage |
-|--------|--------|
-| [`go.mongodb.org/mongo-driver/v2`](https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson) | `Oid` backed by `bson.ObjectID` |
+## Quick start
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/choveylee/tutil"
+)
+
+func main() {
+	u := tutil.NewUid()
+	fmt.Println(u.String())
+
+	oid := tutil.NewOid()
+	fmt.Println(oid.Hex())
+}
+```
+
+Full API: [pkg.go.dev/github.com/choveylee/tutil](https://pkg.go.dev/github.com/choveylee/tutil).
+
+## Features
+
+- **Identifiers** — `Uid` (ULID) and `Oid` (12-byte BSON ObjectID); `database/sql` scanning and `driver.Valuer`; GORM column types via `GormDataType`.
+- **Hashing** — MD5, SHA-1, HMAC variants (legacy algorithms documented as such).
+- **Symmetric crypto** — AES and SM4 ECB/CBC with PKCS#7 or zero padding.
+- **Asymmetric crypto** — RSA (PEM encrypt/decrypt, SHA-256 sign/verify); SM2 encrypt/decrypt via [`gmsm`](https://pkg.go.dev/github.com/tjfoc/gmsm).
+- **Randomness** — `math/rand`-based integers and strings; **not** for secrets or tokens.
+- **MySQL** — `MysqlDsnEncode` URL-escapes the password in simple `user:password@host` DSNs (validate inputs; complex DSN shapes are not handled).
+
+### Direct dependencies
+
+| Module | Role |
+|--------|------|
+| [`github.com/oklog/ulid/v2`](https://pkg.go.dev/github.com/oklog/ulid/v2) | ULID generation and parsing |
+| [`go.mongodb.org/mongo-driver/v2/bson`](https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson) | ObjectID backing type |
 | [`github.com/tjfoc/gmsm`](https://pkg.go.dev/github.com/tjfoc/gmsm) | SM2 / SM4 |
 
-### Modules (quick reference)
+## Security
 
-| Area | Symbols (examples) |
-|------|-------------------|
-| **Hash / MAC** | `Md5`, `Sha1`, `HmacSha1`, `HmacSha256`, `HmacMd5` |
-| **AES** | `GetAes128Key`, `AesEncrypt` / `DecryptAES` (16-byte block ECB-style), PKCS#7 / zero padding helpers, `AesEcb*` / `AesCbc*` for ECB/CBC |
-| **SM4** | `Sm4Ecb*` / `Sm4Cbc*` (PKCS#7 or zero padding), 16-byte key and IV |
-| **SM2** | `GenSm2KeyPair`, `Sm2Encrypt`, `Sm2Decrypt` (hex keys) |
-| **RSA** | `ResetRsaKeyType`, `RSAKeyGenerator`, `RsaEncrypt` / `RsaDecrypt`, `RsaSignature` / `RsaSignatureVerify` |
-| **ObjectID** | `Oid`, `ZeroOid`, `NewOid`, `NewOidHex`, `ParseOid`, `ToOid`, `Scan` / `Value` for `database/sql` |
-| **Random** | `RandInt`, `RandBaseInt`, `RandFloat32`, `RandCharStr`, `RandNumStr`, `RandSourceStr` |
-| **MySQL DSN** | `MysqlDsnEncode` |
+For new work, prefer authenticated encryption (e.g. AES-GCM) instead of raw ECB/CBC helpers. MD5, SHA-1, and `math/rand` helpers are for compatibility or non-security use only—see per-symbol documentation for IV rules, padding, and errors.
 
-Integer/string random helpers use the global **`math/rand`** source (not `crypto/rand`).
+## Contributing
 
-### Security notes
-
-- **MD5 / SHA-1** and **HMAC-MD5** are legacy; avoid for new security designs.
-- **AES-ECB** and **SM4-ECB** do not use an IV; they are weak for structured data—prefer **CBC** (or modern modes) with a proper random IV and authenticated encryption when possible.
-- **AES-CBC** helpers may accept a **nil IV** for backward compatibility (fixed zero IV in implementation); treat this as **legacy / unsafe** for new code.
-- Review godoc on each symbol for length checks, padding rules, and error conditions.
-
-### Tests
+Issues and pull requests are welcome. Run:
 
 ```bash
 go test ./...
+go vet ./...
 ```
 
----
-
-<a id="中文"></a>
-
-## 中文
-
-### 概述
-
-**tutil** 是一个轻量 Go 工具库，提供：哈希与 HMAC、AES/SM4 分组加密（ECB/CBC，PKCS#7 或零填充补码）、基于 PEM 的 RSA 加解密与签名、SM2 加解密、MongoDB 风格 `ObjectID` 工具、随机字符串/整数辅助函数，以及 MySQL DSN 密码编码。
-
-需要 **Go 1.26.1**（见 `go.mod`）。
-
-### 安装
-
-```bash
-go get github.com/choveylee/tutil
-```
-
-### 依赖说明
-
-| 模块 | 用途 |
-|------|------|
-| [`go.mongodb.org/mongo-driver/v2`](https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson) | `Oid` 基于 `bson.ObjectID` |
-| [`github.com/tjfoc/gmsm`](https://pkg.go.dev/github.com/tjfoc/gmsm) | 国密 SM2 / SM4 |
-
-### 功能一览
-
-| 领域 | 主要 API（示例） |
-|------|------------------|
-| **哈希 / MAC** | `Md5`、`Sha1`、`HmacSha1`、`HmacSha256`、`HmacMd5` |
-| **AES** | `GetAes128Key`、`AesEncrypt` / `DecryptAES`（16 字节分组、类 ECB）、PKCS#7 / 零填充、`AesEcb*` / `AesCbc*` |
-| **SM4** | `Sm4Ecb*` / `Sm4Cbc*`（PKCS#7 或零填充），16 字节密钥与 IV |
-| **SM2** | `GenSm2KeyPair`、`Sm2Encrypt`、`Sm2Decrypt`（十六进制密钥） |
-| **RSA** | `ResetRsaKeyType`、`RSAKeyGenerator`、`RsaEncrypt` / `RsaDecrypt`、`RsaSignature` / `RsaSignatureVerify` |
-| **ObjectID** | `Oid`、`ZeroOid`、`NewOid`、`NewOidHex`、`ParseOid`、`ToOid`，以及 `database/sql` 的 `Scan` / `Value` |
-| **随机** | `RandInt`、`RandBaseInt`、`RandFloat32`、`RandCharStr`、`RandNumStr`、`RandSourceStr` |
-| **MySQL DSN** | `MysqlDsnEncode` |
-
-整数与字符串随机数使用全局 **`math/rand`** 源（非 `crypto/rand`）。
-
-### 安全提示
-
-- **MD5 / SHA-1**、**HMAC-MD5** 属遗留算法，新系统请勿用于安全设计。
-- **AES-ECB**、**SM4-ECB** 无 IV，对结构化数据风险高——新代码优先 **CBC**（或更现代的模式）、随机 IV，并在需要时采用带认证的加密。
-- **AES-CBC** 辅助函数可为兼容旧行为接受 **nil IV**（实现上为零 IV），新代码应视为 **不安全遗留**。
-- 具体长度、填充与错误语义以各符号的 godoc 为准。
-
-### 测试
-
-```bash
-go test ./...
-```
+before submitting changes.

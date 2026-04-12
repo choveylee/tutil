@@ -10,7 +10,7 @@ package tutil
 
 import "math/rand"
 
-// RandBaseInt returns a uniform int in [base, base+n); if n <= 0 returns base (avoids rand.Intn panic). Not crypto-safe.
+// RandBaseInt returns a uniform integer in [base, base+n); if n <= 0 it returns base (not cryptographically secure).
 func RandBaseInt(base int, n int) int {
 	if n <= 0 {
 		return base
@@ -19,12 +19,12 @@ func RandBaseInt(base int, n int) int {
 	return base + rand.Intn(n)
 }
 
-// RandInt returns a uniform int in [0, n); if n <= 0 returns 0. Not crypto-safe.
+// RandInt returns a uniform integer in [0, n); if n <= 0 it returns 0 (not cryptographically secure).
 func RandInt(n int) int {
 	return RandBaseInt(0, n)
 }
 
-// RandFloat32 returns [0.0,1.0) from global math/rand. Not crypto-safe.
+// RandFloat32 returns a float32 in [0.0, 1.0) from the global math/rand source (not cryptographically secure).
 func RandFloat32() float32 {
 	return rand.Float32()
 }

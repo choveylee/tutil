@@ -1,6 +1,6 @@
 /**
  * @Author: lidonglin
- * @Description:
+ * @Description: RSA PEM parse/encrypt/decrypt/sign/verify and key pair writer (RSAKeyGeneratorTo).
  * @File:  encrypt_rsa.go
  * @Version: 1.0.0
  * @Date: 2023/10/31 16:01
@@ -18,20 +18,20 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
-// Public-key PEM forms for ResetRsaKeyType and parsers:
-// PublicKeyPKIX = PKIX SubjectPublicKeyInfo; PublicKeyPKCS1 = PKCS#1 RSAPublicKey.
+// PublicKeyPKIX and PublicKeyPKCS1 are public-key PEM layout values for ResetRsaKeyType and the RSA PEM parsers.
 const (
-	PublicKeyPKIX = iota
-	PublicKeyPKCS1
+	PublicKeyPKIX = iota // PKIX SubjectPublicKeyInfo (SPKI)
+	PublicKeyPKCS1       // PKCS#1 RSAPublicKey
 )
 
-// Private-key PEM forms: PrivateKeyPKCS1 = PKCS#1 RSAPrivateKey; PrivateKeyPKCS8 = PKCS#8 PrivateKeyInfo.
+// PrivateKeyPKCS1 and PrivateKeyPKCS8 are private-key PEM layout values for ResetRsaKeyType and the RSA PEM parsers.
 const (
-	PrivateKeyPKCS1 = iota
-	PrivateKeyPKCS8
+	PrivateKeyPKCS1 = iota // PKCS#1 RSAPrivateKey
+	PrivateKeyPKCS8        // PKCS#8 PrivateKeyInfo
 )
 
 var (
@@ -41,7 +41,7 @@ var (
 	rsaPrivateKeyType = PrivateKeyPKCS1
 )
 
-// ResetRsaKeyType sets the global PEM parse modes for RSA public and private keys (thread-safe).
+// ResetRsaKeyType sets the global PEM parsing modes for RSA public and private keys. It is safe for concurrent use.
 func ResetRsaKeyType(publicKeyType int, privateKeyType int) {
 	rsaKeyTypeMutex.Lock()
 	defer rsaKeyTypeMutex.Unlock()
@@ -50,7 +50,7 @@ func ResetRsaKeyType(publicKeyType int, privateKeyType int) {
 	rsaPrivateKeyType = privateKeyType
 }
 
-// decodeRSAPEM decodes the first PEM block from key or returns an error if none.
+// decodeRSAPEM decodes and returns the first PEM block in key, or an error if none is found.
 func decodeRSAPEM(key []byte) (*pem.Block, error) {
 	block, _ := pem.Decode(key)
 	if block == nil {
@@ -60,15 +60,23 @@ func decodeRSAPEM(key []byte) (*pem.Block, error) {
 	return block, nil
 }
 
-// RSAKeyGenerator generates an RSA key pair of bits length via crypto/rand and writes private.pem and public.pem in the current directory.
-// Wire formats follow the global types set by ResetRsaKeyType.
+// RSAKeyGenerator generates an RSA key pair and writes private.pem and public.pem in the current working directory.
 func RSAKeyGenerator(bits int) error {
+	return RSAKeyGeneratorTo(".", bits)
+}
+
+// RSAKeyGeneratorTo generates an RSA key pair and writes private.pem and public.pem into dir. bits must be at least 1024; the private key file uses mode 0600 and PEM types match common OpenSSL conventions.
+func RSAKeyGeneratorTo(dir string, bits int) error {
+	if bits < 1024 {
+		return fmt.Errorf("rsa: bits %d < 1024 (refuse weak keys)", bits)
+	}
+
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
 		return err
 	}
 
-	var X509PrivateKey []byte
+	var privateDER []byte
 
 	rsaKeyTypeMutex.RLock()
 
@@ -77,60 +85,70 @@ func RSAKeyGenerator(bits int) error {
 	rsaKeyTypeMutex.RUnlock()
 
 	if privateKeyType == PrivateKeyPKCS1 {
-		X509PrivateKey = x509.MarshalPKCS1PrivateKey(privateKey)
+		privateDER = x509.MarshalPKCS1PrivateKey(privateKey)
 	} else {
-		X509PrivateKey, err = x509.MarshalPKCS8PrivateKey(privateKey)
+		privateDER, err = x509.MarshalPKCS8PrivateKey(privateKey)
 		if err != nil {
 			return err
 		}
 	}
 
-	privateFile, err := os.Create("private.pem")
+	privPEMType := "RSA PRIVATE KEY"
+	if privateKeyType == PrivateKeyPKCS8 {
+		privPEMType = "PRIVATE KEY"
+	}
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+
+	privatePath := filepath.Join(dir, "private.pem")
+	privateFile, err := os.OpenFile(privatePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
 
 	defer privateFile.Close()
 
-	privateBlock := pem.Block{Type: "RSA Private Key", Bytes: X509PrivateKey}
+	privateBlock := pem.Block{Type: privPEMType, Bytes: privateDER}
 
-	err = pem.Encode(privateFile, &privateBlock)
-	if err != nil {
+	if err := pem.Encode(privateFile, &privateBlock); err != nil {
 		return err
 	}
 
 	publicKey := privateKey.PublicKey
 
-	var X509PublicKey []byte
+	var pubDER []byte
 
 	if publicKeyType == PublicKeyPKIX {
-		X509PublicKey, err = x509.MarshalPKIXPublicKey(&publicKey)
+		pubDER, err = x509.MarshalPKIXPublicKey(&publicKey)
 		if err != nil {
 			return err
 		}
 	} else {
-		X509PublicKey = x509.MarshalPKCS1PublicKey(&publicKey)
+		pubDER = x509.MarshalPKCS1PublicKey(&publicKey)
 	}
 
-	publicFile, err := os.Create("public.pem")
+	pubPEMType := "RSA PUBLIC KEY"
+	if publicKeyType == PublicKeyPKIX {
+		pubPEMType = "PUBLIC KEY"
+	}
+
+	publicPath := filepath.Join(dir, "public.pem")
+	publicFile, err := os.OpenFile(publicPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
 
 	defer publicFile.Close()
 
-	publicBlock := pem.Block{Type: "RSA Public Key", Bytes: X509PublicKey}
+	publicBlock := pem.Block{Type: pubPEMType, Bytes: pubDER}
 
-	err = pem.Encode(publicFile, &publicBlock)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return pem.Encode(publicFile, &publicBlock)
 }
 
-// RsaEncrypt encrypts plainText with RSA PKCS1v15. key is PEM-encoded public key bytes; format from ResetRsaKeyType.
-func RsaEncrypt(plainText, key []byte) ([]byte, error) {
+// RsaEncrypt encrypts plaintext with RSA PKCS1v15. key must hold a PEM-encoded public key in the format selected by ResetRsaKeyType.
+func RsaEncrypt(plaintext, key []byte) ([]byte, error) {
 	block, err := decodeRSAPEM(key)
 	if err != nil {
 		return nil, err
@@ -163,16 +181,16 @@ func RsaEncrypt(plainText, key []byte) ([]byte, error) {
 		}
 	}
 
-	cipherText, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, plainText)
+	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, plaintext)
 	if err != nil {
 		return nil, err
 	}
 
-	return cipherText, nil
+	return ciphertext, nil
 }
 
-// RsaDecrypt decrypts ciphertext with RSA PKCS1v15. key is PEM-encoded private key bytes.
-func RsaDecrypt(cipherText, key []byte) ([]byte, error) {
+// RsaDecrypt decrypts ciphertext with RSA PKCS1v15. key must hold a PEM-encoded private key in the format selected by ResetRsaKeyType.
+func RsaDecrypt(ciphertext, key []byte) ([]byte, error) {
 	block, err := decodeRSAPEM(key)
 	if err != nil {
 		return nil, err
@@ -205,16 +223,16 @@ func RsaDecrypt(cipherText, key []byte) ([]byte, error) {
 		}
 	}
 
-	plainText, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, cipherText)
+	plaintext, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, ciphertext)
 	if err != nil {
 		return nil, err
 	}
 
-	return plainText, nil
+	return plaintext, nil
 }
 
-// RsaSignature signs SHA-256(cipherText) with PKCS1v15 using the PEM private key in key.
-func RsaSignature(cipherText, key []byte) ([]byte, error) {
+// RsaSignature returns the RSA PKCS1v15 signature of SHA-256(message) using the PEM-encoded private key in key.
+func RsaSignature(message, key []byte) ([]byte, error) {
 	block, err := decodeRSAPEM(key)
 	if err != nil {
 		return nil, err
@@ -247,17 +265,13 @@ func RsaSignature(cipherText, key []byte) ([]byte, error) {
 		}
 	}
 
-	hash := sha256.New()
-	hash.Write(cipherText)
+	h := sha256.Sum256(message)
 
-	sign, err := rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, hash.Sum(nil))
-
-	return sign, err
+	return rsa.SignPKCS1v15(rand.Reader, privateKey, crypto.SHA256, h[:])
 }
 
-// RsaSignatureVerify verifies PKCS1v15 signature sign over SHA-256(cipherText) with the PEM public key in key.
-// Returns (true, nil) on success; otherwise false and a non-nil err describing the failure.
-func RsaSignatureVerify(cipherText, sign, key []byte) (bool, error) {
+// RsaSignatureVerify reports whether sign is a valid RSA PKCS1v15 signature of SHA-256(message) for the PEM-encoded public key in key.
+func RsaSignatureVerify(message, sign, key []byte) (bool, error) {
 	block, err := decodeRSAPEM(key)
 	if err != nil {
 		return false, err
@@ -290,10 +304,9 @@ func RsaSignatureVerify(cipherText, sign, key []byte) (bool, error) {
 		}
 	}
 
-	hash := sha256.New()
-	hash.Write(cipherText)
+	h := sha256.Sum256(message)
 
-	err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, hash.Sum(nil), sign)
+	err = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, h[:], sign)
 	if err != nil {
 		return false, err
 	}

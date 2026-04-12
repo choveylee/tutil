@@ -1,6 +1,6 @@
 /**
  * @Author: lidonglin
- * @Description:
+ * @Description: MySQL DSN helper: URL-escape password segment (limited string shapes).
  * @File:  dsn.go
  * @Version: 1.0.0
  * @Date: 2022/12/07 23:06
@@ -12,10 +12,12 @@ import (
 	"net/url"
 )
 
-// MysqlDsnEncode applies url.QueryEscape to the password substring between the first ':' and the last '@'.
-// Works for some user:password@host forms; with a URI scheme (e.g. mysql://) the first ':' may be wrong—validate inputs.
+// MysqlDsnEncode URL-escapes the password substring between the first ':' and the last '@' in dsn.
+//
+// It only matches simple user:password@host-style strings; DSNs with a scheme (for example mysql://)
+// or ':' inside the password can be parsed incorrectly—validate inputs before use.
 func MysqlDsnEncode(dsn string) string {
-	password := ""
+	var password string
 	var i, j int
 
 	for i = len(dsn) - 1; i >= 0; i-- {
