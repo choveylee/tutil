@@ -101,7 +101,7 @@ func (u Uid) Value() (driver.Value, error) {
 // Scan implements sql.Scanner. nil maps to ZeroUid; []byte of length 16 (raw) or a 26-character ULID string are accepted.
 func (u *Uid) Scan(val any) error {
 	if u == nil {
-		return fmt.Errorf("failed to scan uid: nil receiver")
+		return fmt.Errorf("uid: Scan on nil *Uid receiver")
 	}
 
 	if val == nil {
@@ -113,7 +113,7 @@ func (u *Uid) Scan(val any) error {
 	switch x := val.(type) {
 	case []byte:
 		if len(x) != 16 {
-			return fmt.Errorf("failed to scan uid: want 16 bytes, got %d", len(x))
+			return fmt.Errorf("uid: []byte length is %d; expected 16", len(x))
 		}
 
 		copy(u[:], x)
@@ -129,7 +129,7 @@ func (u *Uid) Scan(val any) error {
 
 		return nil
 	default:
-		return fmt.Errorf("failed to scan uid: want []byte or string, got %T", val)
+		return fmt.Errorf("uid: unsupported source type %T; expected []byte or string", val)
 	}
 }
 

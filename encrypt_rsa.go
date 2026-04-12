@@ -54,7 +54,7 @@ func ResetRsaKeyType(publicKeyType int, privateKeyType int) {
 func decodeRSAPEM(key []byte) (*pem.Block, error) {
 	block, _ := pem.Decode(key)
 	if block == nil {
-		return nil, errors.New("failed to decode PEM: invalid or empty PEM data")
+		return nil, errors.New("rsa: PEM data is empty or not valid PEM")
 	}
 
 	return block, nil
@@ -68,7 +68,7 @@ func RSAKeyGenerator(bits int) error {
 // RSAKeyGeneratorTo generates an RSA key pair and writes private.pem and public.pem into dir. bits must be at least 1024; the private key file uses mode 0600 and PEM types match common OpenSSL conventions.
 func RSAKeyGeneratorTo(dir string, bits int) error {
 	if bits < 1024 {
-		return fmt.Errorf("rsa: bits %d < 1024 (refuse weak keys)", bits)
+		return fmt.Errorf("rsa: key size %d bits is below the minimum of 1024", bits)
 	}
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)
@@ -172,7 +172,7 @@ func RsaEncrypt(plaintext, key []byte) ([]byte, error) {
 
 		publicKey, ok = publicInterface.(*rsa.PublicKey)
 		if !ok {
-			return nil, fmt.Errorf("public key is not RSA: got %T", publicInterface)
+			return nil, fmt.Errorf("rsa: public key has type %T; *rsa.PublicKey required", publicInterface)
 		}
 	} else {
 		publicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
@@ -219,7 +219,7 @@ func RsaDecrypt(ciphertext, key []byte) ([]byte, error) {
 
 		privateKey, ok = privateInterface.(*rsa.PrivateKey)
 		if !ok {
-			return nil, fmt.Errorf("private key is not RSA: got %T", privateInterface)
+			return nil, fmt.Errorf("rsa: private key has type %T; *rsa.PrivateKey required", privateInterface)
 		}
 	}
 
@@ -261,7 +261,7 @@ func RsaSignature(message, key []byte) ([]byte, error) {
 
 		privateKey, ok = privateInterface.(*rsa.PrivateKey)
 		if !ok {
-			return nil, fmt.Errorf("private key is not RSA: got %T", privateInterface)
+			return nil, fmt.Errorf("rsa: private key has type %T; *rsa.PrivateKey required", privateInterface)
 		}
 	}
 
@@ -295,7 +295,7 @@ func RsaSignatureVerify(message, sign, key []byte) (bool, error) {
 
 		publicKey, ok = publicInterface.(*rsa.PublicKey)
 		if !ok {
-			return false, fmt.Errorf("public key is not RSA: got %T", publicInterface)
+			return false, fmt.Errorf("rsa: public key has type %T; *rsa.PublicKey required", publicInterface)
 		}
 	} else {
 		publicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)

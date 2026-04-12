@@ -18,7 +18,7 @@ import (
 // sm4CheckCbcIV returns an error if len(iv) is not equal to blockSize.
 func sm4CheckCbcIV(iv []byte, blockSize int) error {
 	if len(iv) != blockSize {
-		return fmt.Errorf("sm4 cbc: iv length %d must equal block size %d", len(iv), blockSize)
+		return fmt.Errorf("sm4 cbc: IV length is %d; must equal block size %d", len(iv), blockSize)
 	}
 
 	return nil
@@ -141,7 +141,7 @@ func Sm4CbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	}
 
 	if len(ciphertext)%blockSize != 0 {
-		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d is not a multiple of block size %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d must be a multiple of block size %d", len(ciphertext), blockSize)
 	}
 
 	blockMode := cipher.NewCBCDecrypter(block, iv)
@@ -195,7 +195,7 @@ func Sm4CbcDecryptZero(ciphertext, key, iv []byte) ([]byte, error) {
 	}
 
 	if len(ciphertext)%blockSize != 0 {
-		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d is not a multiple of block size %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d must be a multiple of block size %d", len(ciphertext), blockSize)
 	}
 
 	blockMode := cipher.NewCBCDecrypter(block, iv)
