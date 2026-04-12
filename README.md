@@ -24,7 +24,7 @@ go get github.com/choveylee/tutil
 
 | Module | Usage |
 |--------|--------|
-| [`go.mongodb.org/mongo-driver`](https://pkg.go.dev/go.mongodb.org/mongo-driver/bson/primitive) | `Oid` backed by `primitive.ObjectID` |
+| [`go.mongodb.org/mongo-driver/v2`](https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson) | `Oid` backed by `bson.ObjectID` |
 | [`github.com/tjfoc/gmsm`](https://pkg.go.dev/github.com/tjfoc/gmsm) | SM2 / SM4 |
 
 ### Modules (quick reference)
@@ -77,7 +77,7 @@ go get github.com/choveylee/tutil
 
 | 模块 | 用途 |
 |------|------|
-| [`go.mongodb.org/mongo-driver`](https://pkg.go.dev/go.mongodb.org/mongo-driver/bson/primitive) | `Oid` 基于 `primitive.ObjectID` |
+| [`go.mongodb.org/mongo-driver/v2`](https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson) | `Oid` 基于 `bson.ObjectID` |
 | [`github.com/tjfoc/gmsm`](https://pkg.go.dev/github.com/tjfoc/gmsm) | 国密 SM2 / SM4 |
 
 ### 功能一览
