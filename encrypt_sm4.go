@@ -1,11 +1,3 @@
-/**
- * @Author: lidonglin
- * @Description: SM4 ECB/CBC with PKCS#7 or zero padding (legacy; ECB weak).
- * @File:  encrypt_sm4.go
- * @Version: 1.0.0
- * @Date: 2024/8/24 12:37:38
- */
-
 package tutil
 
 import (
@@ -15,7 +7,7 @@ import (
 	"github.com/tjfoc/gmsm/sm4"
 )
 
-// sm4CheckCbcIV returns an error if len(iv) is not equal to blockSize.
+// sm4CheckCbcIV returns an error unless the length of iv equals blockSize.
 func sm4CheckCbcIV(iv []byte, blockSize int) error {
 	if len(iv) != blockSize {
 		return fmt.Errorf("sm4 cbc: IV length is %d; must equal block size %d", len(iv), blockSize)
@@ -24,7 +16,8 @@ func sm4CheckCbcIV(iv []byte, blockSize int) error {
 	return nil
 }
 
-// Sm4EcbEncryptPKCS7 encrypts plaintext with SM4 in ECB mode and PKCS#7 padding. key must be 16 bytes (ECB is weak for general use).
+// Sm4EcbEncryptPKCS7 encrypts plaintext using SM4 in ECB mode with PKCS #7 padding.
+// key must be 16 bytes. ECB mode is unsuitable for general-purpose confidentiality.
 func Sm4EcbEncryptPKCS7(plaintext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -42,7 +35,7 @@ func Sm4EcbEncryptPKCS7(plaintext, key []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// Sm4EcbDecryptPKCS7 decrypts ciphertext produced by Sm4EcbEncryptPKCS7.
+// Sm4EcbDecryptPKCS7 decrypts ciphertext produced by Sm4EcbEncryptPKCS7 using the same key.
 func Sm4EcbDecryptPKCS7(ciphertext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -65,7 +58,8 @@ func Sm4EcbDecryptPKCS7(ciphertext, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// Sm4EcbEncryptZero encrypts plaintext with SM4-ECB after ZeroPadding. key must be 16 bytes.
+// Sm4EcbEncryptZero encrypts plaintext using SM4 in ECB mode after ZeroPadding.
+// key must be 16 bytes.
 func Sm4EcbEncryptZero(plaintext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -83,7 +77,7 @@ func Sm4EcbEncryptZero(plaintext, key []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// Sm4EcbDecryptZero decrypts ciphertext produced by Sm4EcbEncryptZero and strips zero padding.
+// Sm4EcbDecryptZero decrypts ciphertext produced by Sm4EcbEncryptZero and removes zero padding.
 func Sm4EcbDecryptZero(ciphertext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -104,7 +98,8 @@ func Sm4EcbDecryptZero(ciphertext, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// Sm4CbcEncryptPKCS7 encrypts plaintext with SM4-CBC and PKCS#7 padding. key and iv must each be 16 bytes.
+// Sm4CbcEncryptPKCS7 encrypts plaintext using SM4 in CBC mode with PKCS #7 padding.
+// key and iv must each be 16 bytes.
 func Sm4CbcEncryptPKCS7(plaintext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -127,7 +122,8 @@ func Sm4CbcEncryptPKCS7(plaintext, key, iv []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// Sm4CbcDecryptPKCS7 decrypts SM4-CBC ciphertext with PKCS#7 padding; it does not overwrite the ciphertext slice.
+// Sm4CbcDecryptPKCS7 decrypts ciphertext produced by Sm4CbcEncryptPKCS7.
+// It writes plaintext into a new buffer and does not overwrite ciphertext.
 func Sm4CbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -157,7 +153,8 @@ func Sm4CbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// Sm4CbcEncryptZero encrypts plaintext with SM4-CBC after ZeroPadding. key and iv must each be 16 bytes.
+// Sm4CbcEncryptZero encrypts plaintext using SM4 in CBC mode after ZeroPadding.
+// key and iv must each be 16 bytes.
 func Sm4CbcEncryptZero(plaintext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -181,7 +178,8 @@ func Sm4CbcEncryptZero(plaintext, key, iv []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// Sm4CbcDecryptZero decrypts SM4-CBC ciphertext with zero padding removed; it does not overwrite the ciphertext slice.
+// Sm4CbcDecryptZero decrypts ciphertext produced by Sm4CbcEncryptZero and removes zero padding.
+// It writes plaintext into a new buffer and does not overwrite ciphertext.
 func Sm4CbcDecryptZero(ciphertext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {

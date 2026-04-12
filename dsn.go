@@ -1,21 +1,15 @@
-/**
- * @Author: lidonglin
- * @Description: MySQL DSN helper: URL-escape password segment (limited string shapes).
- * @File:  dsn.go
- * @Version: 1.0.0
- * @Date: 2022/12/07 23:06
- */
-
 package tutil
 
 import (
 	"net/url"
 )
 
-// MysqlDsnEncode URL-escapes the password substring between the first ':' and the last '@' in dsn.
+// MysqlDsnEncode applies URL query escaping to the password field in dsn, defined as the substring
+// between the first ':' and the last '@'.
 //
-// It only matches simple user:password@host-style strings; DSNs with a scheme (for example mysql://)
-// or ':' inside the password can be parsed incorrectly—validate inputs before use.
+// The implementation assumes a simple user:password@host layout. Connection strings that include a
+// scheme (for example mysql://) or a colon inside the password may be handled incorrectly; callers
+// must validate inputs when those forms are possible.
 func MysqlDsnEncode(dsn string) string {
 	var password string
 	var i, j int

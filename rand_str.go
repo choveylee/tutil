@@ -1,22 +1,15 @@
-/**
- * @Author: lidonglin
- * @Description: Random strings via math/rand (not for passwords or tokens).
- * @File:  rand_str.go
- * @Version: 1.0.0
- * @Date: 2023/11/23 10:07
- */
-
 package tutil
 
 import "math/rand"
 
-// randChar and randNum are byte alphabets used by RandCharStr and RandNumStr.
+// randChar and randNum are the character sets used by RandCharStr and RandNumStr.
 var (
 	randChar = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	randNum  = []byte("0123456789")
 )
 
-// RandCharStr returns a string of n random ASCII digits and letters, or "" if n <= 0 (not cryptographically secure).
+// RandCharStr returns a string of length n containing pseudo-random ASCII digits and letters using math/rand.
+// If n is less than or equal to zero, it returns an empty string. The result is not suitable for cryptographic use.
 func RandCharStr(n int) string {
 	if n <= 0 {
 		return ""
@@ -33,7 +26,8 @@ func RandCharStr(n int) string {
 	return string(data)
 }
 
-// RandNumStr returns a string of n random decimal digits, or "" if n <= 0 (not cryptographically secure).
+// RandNumStr returns a string of length n containing pseudo-random decimal digits using math/rand.
+// If n is less than or equal to zero, it returns an empty string. The result is not suitable for cryptographic use.
 func RandNumStr(n int) string {
 	if n <= 0 {
 		return ""
@@ -50,7 +44,9 @@ func RandNumStr(n int) string {
 	return string(data)
 }
 
-// RandSourceStr returns a length-n string by sampling bytes from source with replacement, or "" if n <= 0 or source is empty (not cryptographically secure).
+// RandSourceStr returns a string of length n by sampling uniformly from source with replacement using math/rand.
+// If n is less than or equal to zero or source is empty, it returns an empty string.
+// The result is not suitable for cryptographic use.
 func RandSourceStr(source []byte, n int) string {
 	if n <= 0 || len(source) == 0 {
 		return ""
