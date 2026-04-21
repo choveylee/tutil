@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/tjfoc/gmsm v1.4.1
-	go.mongodb.org/mongo-driver/v2 v2.5.0
+	go.mongodb.org/mongo-driver/v2 v2.5.1
 )
 
 require (
