@@ -16,8 +16,8 @@ import (
 
 // PublicKeyPKIX and PublicKeyPKCS1 select the PEM encoding format for RSA public keys in ResetRsaKeyType and related parsers.
 const (
-	PublicKeyPKIX = iota // PKIX SubjectPublicKeyInfo (SPKI)
-	PublicKeyPKCS1       // ANSI PKCS #1 RSAPublicKey
+	PublicKeyPKIX  = iota // PKIX SubjectPublicKeyInfo (SPKI)
+	PublicKeyPKCS1        // ANSI PKCS #1 RSAPublicKey
 )
 
 // PrivateKeyPKCS1 and PrivateKeyPKCS8 select the PEM encoding format for RSA private keys in ResetRsaKeyType and related parsers.
@@ -87,9 +87,9 @@ func RSAKeyGeneratorTo(dir string, bits int) error {
 		}
 	}
 
-	privPEMType := "RSA PRIVATE KEY"
+	privatePemType := "RSA PRIVATE KEY"
 	if privateKeyType == PrivateKeyPKCS8 {
-		privPEMType = "PRIVATE KEY"
+		privatePemType = "PRIVATE KEY"
 	}
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -104,7 +104,11 @@ func RSAKeyGeneratorTo(dir string, bits int) error {
 
 	defer privateFile.Close()
 
-	privateBlock := pem.Block{Type: privPEMType, Bytes: privateDER}
+	if err := privateFile.Chmod(0o600); err != nil {
+		return err
+	}
+
+	privateBlock := pem.Block{Type: privatePemType, Bytes: privateDER}
 
 	if err := pem.Encode(privateFile, &privateBlock); err != nil {
 		return err
