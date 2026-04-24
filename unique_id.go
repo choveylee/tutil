@@ -86,7 +86,7 @@ func (u Uid) GormDataType() string {
 	return "binary(16)"
 }
 
-// Value implements driver.Valuer by returning the 16-byte ULID representation.
+// Value implements driver.Valuer by returning the 16-byte binary ULID representation.
 func (u Uid) Value() (driver.Value, error) {
 	return u[:], nil
 }
@@ -95,7 +95,7 @@ func (u Uid) Value() (driver.Value, error) {
 // Accepted types are []byte of length 16 or a 26-character ULID string.
 func (u *Uid) Scan(val any) error {
 	if u == nil {
-		return fmt.Errorf("uid: Scan on nil *Uid receiver")
+		return fmt.Errorf("uid: scan on nil *Uid receiver")
 	}
 
 	if val == nil {
@@ -107,7 +107,7 @@ func (u *Uid) Scan(val any) error {
 	switch x := val.(type) {
 	case []byte:
 		if len(x) != 16 {
-			return fmt.Errorf("uid: []byte length is %d; expected 16", len(x))
+			return fmt.Errorf("uid: invalid []byte length %d, want 16", len(x))
 		}
 
 		copy(u[:], x)
@@ -123,7 +123,7 @@ func (u *Uid) Scan(val any) error {
 
 		return nil
 	default:
-		return fmt.Errorf("uid: unsupported source type %T; expected []byte or string", val)
+		return fmt.Errorf("uid: invalid scan source type %T, want []byte or string", val)
 	}
 }
 

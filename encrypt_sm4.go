@@ -10,7 +10,7 @@ import (
 // sm4CheckCbcIV returns an error unless the length of iv equals blockSize.
 func sm4CheckCbcIV(iv []byte, blockSize int) error {
 	if len(iv) != blockSize {
-		return fmt.Errorf("sm4 cbc: IV length is %d; must equal block size %d", len(iv), blockSize)
+		return fmt.Errorf("sm4 cbc: invalid IV length %d, want %d", len(iv), blockSize)
 	}
 
 	return nil
@@ -98,7 +98,7 @@ func Sm4EcbDecryptZero(ciphertext, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// Sm4CbcEncryptPKCS7 encrypts plaintext using SM4 in CBC mode with PKCS #7 padding.
+// Sm4CbcEncryptPKCS7 encrypts plaintext using SM4-CBC with PKCS #7 padding.
 // key and iv must each be 16 bytes.
 func Sm4CbcEncryptPKCS7(plaintext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
@@ -137,7 +137,7 @@ func Sm4CbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	}
 
 	if len(ciphertext)%blockSize != 0 {
-		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d must be a multiple of block size %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("sm4 cbc: invalid ciphertext length %d, want multiple of %d", len(ciphertext), blockSize)
 	}
 
 	blockMode := cipher.NewCBCDecrypter(block, iv)
@@ -153,7 +153,7 @@ func Sm4CbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// Sm4CbcEncryptZero encrypts plaintext using SM4 in CBC mode after ZeroPadding.
+// Sm4CbcEncryptZero encrypts plaintext using SM4-CBC after ZeroPadding.
 // key and iv must each be 16 bytes.
 func Sm4CbcEncryptZero(plaintext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
@@ -193,7 +193,7 @@ func Sm4CbcDecryptZero(ciphertext, key, iv []byte) ([]byte, error) {
 	}
 
 	if len(ciphertext)%blockSize != 0 {
-		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d must be a multiple of block size %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("sm4 cbc: invalid ciphertext length %d, want multiple of %d", len(ciphertext), blockSize)
 	}
 
 	blockMode := cipher.NewCBCDecrypter(block, iv)

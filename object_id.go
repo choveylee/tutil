@@ -50,7 +50,7 @@ func NewOidHexFromTimestamp(timestamp time.Time) string {
 // On failure it returns ZeroOid and a non-nil error.
 func ParseOid(id string) (Oid, error) {
 	if len(id) != 24 {
-		return ZeroOid, fmt.Errorf("oid: expected 24 hexadecimal characters, got length %d", len(id))
+		return ZeroOid, fmt.Errorf("oid: invalid hex length %d, want 24", len(id))
 	}
 
 	oidBytes, err := hex.DecodeString(id)
@@ -88,7 +88,7 @@ func (o Oid) GormDataType() string {
 	return "binary(12)"
 }
 
-// Value implements driver.Valuer by returning the 12-byte ObjectID representation.
+// Value implements driver.Valuer by returning the 12-byte binary ObjectID representation.
 func (o Oid) Value() (driver.Value, error) {
 	return o[:], nil
 }
@@ -97,7 +97,7 @@ func (o Oid) Value() (driver.Value, error) {
 // Accepted types are []byte of length 12 or a 24-digit hexadecimal string.
 func (o *Oid) Scan(val any) error {
 	if o == nil {
-		return fmt.Errorf("oid: Scan on nil *Oid receiver")
+		return fmt.Errorf("oid: scan on nil *Oid receiver")
 	}
 
 	if val == nil {
@@ -109,7 +109,7 @@ func (o *Oid) Scan(val any) error {
 	switch x := val.(type) {
 	case []byte:
 		if len(x) != 12 {
-			return fmt.Errorf("oid: []byte length is %d; expected 12", len(x))
+			return fmt.Errorf("oid: invalid []byte length %d, want 12", len(x))
 		}
 
 		copy(o[:], x)
@@ -125,7 +125,7 @@ func (o *Oid) Scan(val any) error {
 
 		return nil
 	default:
-		return fmt.Errorf("oid: unsupported source type %T; expected []byte or string", val)
+		return fmt.Errorf("oid: invalid scan source type %T, want []byte or string", val)
 	}
 }
 

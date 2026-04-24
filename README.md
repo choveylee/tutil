@@ -2,7 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/choveylee/tutil.svg)](https://pkg.go.dev/github.com/choveylee/tutil)
 
-General-purpose helpers for Go: **ULIDs**, **MongoDB ObjectIDs**, hashing and HMAC, **AES** / **RSA** / **SM2** / **SM4**, non-cryptographic random values, and MySQL DSN password escaping.
+Small Go utility package for sortable identifiers, hashing/HMAC helpers, AES/RSA/SM2/SM4 interoperability, non-cryptographic random values, and simple MySQL DSN password escaping.
 
 ## Installation
 
@@ -10,7 +10,7 @@ General-purpose helpers for Go: **ULIDs**, **MongoDB ObjectIDs**, hashing and HM
 go get github.com/choveylee/tutil
 ```
 
-Requires **Go 1.25** or later (see [`go.mod`](go.mod)).
+Requires **Go 1.25** or later.
 
 ## Quick start
 
@@ -36,12 +36,12 @@ Full API: [pkg.go.dev/github.com/choveylee/tutil](https://pkg.go.dev/github.com/
 
 ## Features
 
-- **Identifiers** — `Uid` (ULID) and `Oid` (12-byte BSON ObjectID); `database/sql` scanning and `driver.Valuer`; GORM column types via `GormDataType`.
-- **Hashing** — MD5, SHA-1, HMAC variants (legacy algorithms documented as such).
-- **Symmetric crypto** — AES and SM4 ECB/CBC with PKCS#7 or zero padding.
-- **Asymmetric crypto** — RSA (PEM encrypt/decrypt, SHA-256 sign/verify); SM2 encrypt/decrypt via [`gmsm`](https://pkg.go.dev/github.com/tjfoc/gmsm).
-- **Randomness** — `math/rand`-based integers and strings; **not** for secrets or tokens.
-- **MySQL** — `MysqlDsnEncode` URL-escapes the password in simple `user:password@host` DSNs (validate inputs; complex DSN shapes are not handled).
+- **Identifiers** - `Uid` (ULID) and `Oid` (12-byte BSON ObjectID), including `database/sql` scanning, `driver.Valuer`, string parsing, and GORM data type hints.
+- **Hashing and HMAC** - MD5, SHA-1, HMAC-MD5, HMAC-SHA1, and HMAC-SHA256 helpers. MD5 and SHA-1 are retained for compatibility use cases.
+- **Symmetric cryptography** - AES and SM4 ECB/CBC helpers with PKCS #7 or zero padding for interoperability with existing systems.
+- **Asymmetric cryptography** - RSA PEM key generation, encryption/decryption, and SHA-256 signing/verification; SM2 encryption/decryption via [`gmsm`](https://pkg.go.dev/github.com/tjfoc/gmsm).
+- **Random values** - `math/rand`-based integers and strings for non-security use only.
+- **MySQL DSN escaping** - `MysqlDsnEncode` escapes the password portion of simple `user:password@host` DSNs.
 
 ### Direct dependencies
 
@@ -51,9 +51,17 @@ Full API: [pkg.go.dev/github.com/choveylee/tutil](https://pkg.go.dev/github.com/
 | [`go.mongodb.org/mongo-driver/v2/bson`](https://pkg.go.dev/go.mongodb.org/mongo-driver/v2/bson) | ObjectID backing type |
 | [`github.com/tjfoc/gmsm`](https://pkg.go.dev/github.com/tjfoc/gmsm) | SM2 / SM4 |
 
+## API Notes
+
+- `AesEncrypt` and `AesDecrypt` operate on exactly one AES block. Use the explicit ECB/CBC helpers when working with longer inputs.
+- AES-CBC uses the first key block as the IV when `iv` is empty. This is legacy behavior for compatibility; new code should pass a fresh random IV.
+- Zero padding is lossy when plaintext can end with zero bytes.
+- `ResetRsaKeyType` configures the process-wide default PEM formats used by RSA helpers. Invalid format values are rejected.
+- `MysqlDsnEncode` is intentionally narrow: callers should use a DSN parser for URL-style or driver-specific connection strings.
+
 ## Security
 
-For new work, prefer authenticated encryption (e.g. AES-GCM) instead of raw ECB/CBC helpers. MD5, SHA-1, and `math/rand` helpers are for compatibility or non-security use only—see per-symbol documentation for IV rules, padding, and errors.
+For new designs, prefer authenticated encryption such as AES-GCM over raw ECB/CBC helpers. RSA PKCS #1 v1.5 encryption, MD5, SHA-1, and `math/rand` helpers are provided for compatibility or non-security use cases.
 
 ## Contributing
 

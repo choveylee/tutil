@@ -4,12 +4,11 @@ import (
 	"net/url"
 )
 
-// MysqlDsnEncode applies URL query escaping to the password field in dsn, defined as the substring
-// between the first ':' and the last '@'.
+// MysqlDsnEncode applies URL query escaping to the password field in a simple MySQL DSN.
+// The password is interpreted as the substring between the first ':' and the last '@'.
 //
-// The implementation assumes a simple user:password@host layout. Connection strings that include a
-// scheme (for example mysql://) or a colon inside the password may be handled incorrectly; callers
-// must validate inputs when those forms are possible.
+// The implementation assumes a user:password@host layout. Connection strings with URL schemes,
+// empty passwords, or driver-specific userinfo forms should be parsed and escaped by callers.
 func MysqlDsnEncode(dsn string) string {
 	var password string
 	var i, j int

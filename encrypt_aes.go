@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// aesCbcResolveIV returns iv when its length equals the block size, the first block of key when iv
-// is empty (legacy behavior), or a non-nil error if iv has any other length.
+// aesCbcResolveIV returns iv when it is one block long, derives the legacy default IV from key
+// when iv is empty, and rejects all other IV lengths.
 func aesCbcResolveIV(block cipher.Block, key, iv []byte) ([]byte, error) {
 	blockSize := block.BlockSize()
 	switch {
@@ -18,17 +18,17 @@ func aesCbcResolveIV(block cipher.Block, key, iv []byte) ([]byte, error) {
 		return iv, nil
 	case len(iv) == 0:
 		if len(key) < blockSize {
-			return nil, fmt.Errorf("aes cbc: key length %d is insufficient to derive default IV (required at least %d bytes)", len(key), blockSize)
+			return nil, fmt.Errorf("aes cbc: key length %d cannot derive default IV, want at least %d", len(key), blockSize)
 		}
 
 		return key[:blockSize], nil
 	default:
-		return nil, fmt.Errorf("aes cbc: IV length is %d; must be 0 or %d bytes", len(iv), blockSize)
+		return nil, fmt.Errorf("aes cbc: invalid IV length %d, want 0 or %d", len(iv), blockSize)
 	}
 }
 
 // AesEncrypt encrypts a single AES block without block chaining.
-// The plaintext length must equal the block size, and key must be 16, 24, or 32 bytes.
+// plaintext must be exactly one AES block, and key must be 16, 24, or 32 bytes.
 func AesEncrypt(plaintext, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -37,7 +37,7 @@ func AesEncrypt(plaintext, key []byte) ([]byte, error) {
 
 	blockSize := block.BlockSize()
 	if len(plaintext) != blockSize {
-		return nil, fmt.Errorf("aes: plaintext length %d must equal block size %d", len(plaintext), blockSize)
+		return nil, fmt.Errorf("aes: invalid plaintext length %d, want %d", len(plaintext), blockSize)
 	}
 
 	ciphertext := make([]byte, len(plaintext))
@@ -47,7 +47,7 @@ func AesEncrypt(plaintext, key []byte) ([]byte, error) {
 }
 
 // AesDecrypt decrypts ciphertext produced by AesEncrypt.
-// The ciphertext length must equal the block size.
+// ciphertext must be exactly one AES block.
 func AesDecrypt(ciphertext, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -56,7 +56,7 @@ func AesDecrypt(ciphertext, key []byte) ([]byte, error) {
 
 	blockSize := block.BlockSize()
 	if len(ciphertext) != blockSize {
-		return nil, fmt.Errorf("aes: ciphertext length %d must equal block size %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("aes: invalid ciphertext length %d, want %d", len(ciphertext), blockSize)
 	}
 
 	plaintext := make([]byte, len(ciphertext))
@@ -66,7 +66,7 @@ func AesDecrypt(ciphertext, key []byte) ([]byte, error) {
 }
 
 // ecbEncryptBlocks encrypts src into dst using ECB mode.
-// The length of src must be a multiple of the block size, and dst must be at least as long as src.
+// src must be block-aligned, and dst must be at least as long as src.
 func ecbEncryptBlocks(block cipher.Block, dst, src []byte) error {
 	blockSize := block.BlockSize()
 	if blockSize <= 0 {
@@ -74,11 +74,11 @@ func ecbEncryptBlocks(block cipher.Block, dst, src []byte) error {
 	}
 
 	if len(src)%blockSize != 0 {
-		return fmt.Errorf("aes ecb encrypt: input length %d must be a multiple of block size %d", len(src), blockSize)
+		return fmt.Errorf("aes ecb: invalid encrypt input length %d, want multiple of %d", len(src), blockSize)
 	}
 
 	if len(dst) < len(src) {
-		return fmt.Errorf("aes ecb encrypt: destination buffer length %d is less than required %d", len(dst), len(src))
+		return fmt.Errorf("aes ecb: encrypt destination length %d, want at least %d", len(dst), len(src))
 	}
 
 	for len(src) > 0 {
@@ -90,7 +90,8 @@ func ecbEncryptBlocks(block cipher.Block, dst, src []byte) error {
 	return nil
 }
 
-// ecbDecryptBlocks decrypts src into dst using ECB mode and the same length constraints as ecbEncryptBlocks.
+// ecbDecryptBlocks decrypts src into dst using ECB mode.
+// src must be block-aligned, and dst must be at least as long as src.
 func ecbDecryptBlocks(block cipher.Block, dst, src []byte) error {
 	blockSize := block.BlockSize()
 	if blockSize <= 0 {
@@ -98,11 +99,11 @@ func ecbDecryptBlocks(block cipher.Block, dst, src []byte) error {
 	}
 
 	if len(src)%blockSize != 0 {
-		return fmt.Errorf("aes ecb decrypt: input length %d must be a multiple of block size %d", len(src), blockSize)
+		return fmt.Errorf("aes ecb: invalid decrypt input length %d, want multiple of %d", len(src), blockSize)
 	}
 
 	if len(dst) < len(src) {
-		return fmt.Errorf("aes ecb decrypt: destination buffer length %d is less than required %d", len(dst), len(src))
+		return fmt.Errorf("aes ecb: decrypt destination length %d, want at least %d", len(dst), len(src))
 	}
 
 	for len(src) > 0 {
@@ -117,6 +118,7 @@ func ecbDecryptBlocks(block cipher.Block, dst, src []byte) error {
 // ZeroPadding appends zero bytes to plaintext until its length is a multiple of blockSize.
 // If the length is already aligned, it appends one full block of zeros.
 // It returns nil if blockSize is not positive.
+// Zero padding is lossy for plaintext that already ends in zero bytes.
 func ZeroPadding(plaintext []byte, blockSize int) []byte {
 	if blockSize <= 0 {
 		return nil
@@ -130,7 +132,7 @@ func ZeroPadding(plaintext []byte, blockSize int) []byte {
 }
 
 // ZeroUnPadding removes trailing zero bytes from plaintext.
-// An empty slice is returned unchanged.
+// It cannot distinguish padding zeros from data zeros; an empty slice is returned unchanged.
 func ZeroUnPadding(plaintext []byte) ([]byte, error) {
 	if len(plaintext) == 0 {
 		return plaintext, nil
@@ -140,36 +142,36 @@ func ZeroUnPadding(plaintext []byte) ([]byte, error) {
 }
 
 // PKCS7Padding appends PKCS #7 padding to data so that its length is a multiple of blockSize.
-// It returns nil if blockSize is not positive or is too large for PKCS #7 padding.
-func PKCS7Padding(ciphertext []byte, blockSize int) []byte {
+// It returns nil if blockSize is outside the PKCS #7 range [1, 255].
+func PKCS7Padding(data []byte, blockSize int) []byte {
 	if blockSize <= 0 || blockSize > 255 {
 		return nil
 	}
 
-	padding := blockSize - len(ciphertext)%blockSize
+	padding := blockSize - len(data)%blockSize
 
 	padText := bytes.Repeat([]byte{byte(padding)}, padding)
 
-	return append(ciphertext, padText...)
+	return append(data, padText...)
 }
 
-// PKCS7UnPadding removes PKCS #7 padding from plaintext.
-// It returns an error if the padding is invalid.
-func PKCS7UnPadding(plaintext []byte, blockSize int) ([]byte, error) {
+// PKCS7UnPadding removes PKCS #7 padding from paddedData.
+// paddedData must be non-empty and its length must be a multiple of blockSize.
+func PKCS7UnPadding(paddedData []byte, blockSize int) ([]byte, error) {
 	if blockSize <= 0 || blockSize > 255 {
 		return nil, errors.New("pkcs7: invalid block size")
 	}
 
-	textLen := len(plaintext)
+	textLen := len(paddedData)
 	if textLen == 0 {
-		return nil, errors.New("pkcs7: plaintext is empty")
+		return nil, errors.New("pkcs7: empty padded data")
 	}
 
 	if textLen%blockSize != 0 {
-		return nil, fmt.Errorf("pkcs7: plaintext length %d must be a multiple of block size %d", textLen, blockSize)
+		return nil, fmt.Errorf("pkcs7: invalid padded data length %d, want multiple of %d", textLen, blockSize)
 	}
 
-	padLen := int(plaintext[textLen-1])
+	padLen := int(paddedData[textLen-1])
 	if padLen > textLen || padLen <= 0 || padLen > blockSize {
 		return nil, errors.New("pkcs7: invalid padding length")
 	}
@@ -178,12 +180,12 @@ func PKCS7UnPadding(plaintext []byte, blockSize int) ([]byte, error) {
 	paddingByte := byte(padLen)
 
 	for i := startIndex; i < textLen; i++ {
-		if plaintext[i] != paddingByte {
-			return nil, errors.New("pkcs7: padding is malformed or corrupted")
+		if paddedData[i] != paddingByte {
+			return nil, errors.New("pkcs7: invalid padding bytes")
 		}
 	}
 
-	return plaintext[:startIndex], nil
+	return paddedData[:startIndex], nil
 }
 
 // GetAes128Key returns a 16-byte string derived from key by truncation or right-padding with ASCII '0'.
@@ -280,7 +282,7 @@ func AesEcbDecryptZero(ciphertext, key []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// AesCbcEncryptPKCS7 encrypts plaintext using AES in cipher block chaining (CBC) mode with PKCS #7 padding.
+// AesCbcEncryptPKCS7 encrypts plaintext using AES-CBC with PKCS #7 padding.
 // If iv is empty, the first block of key is used as the initialization vector (legacy, insecure).
 // Otherwise iv must be exactly one block long; new designs should use a random IV.
 func AesCbcEncryptPKCS7(plaintext, key, iv []byte) ([]byte, error) {
@@ -303,7 +305,7 @@ func AesCbcEncryptPKCS7(plaintext, key, iv []byte) ([]byte, error) {
 	ciphertext := make([]byte, len(plaintext))
 
 	if len(plaintext)%blockMode.BlockSize() != 0 {
-		return nil, fmt.Errorf("aes cbc: plaintext length %d must be a multiple of block size %d", len(plaintext), blockMode.BlockSize())
+		return nil, fmt.Errorf("aes cbc: invalid padded plaintext length %d, want multiple of %d", len(plaintext), blockMode.BlockSize())
 	}
 
 	blockMode.CryptBlocks(ciphertext, plaintext)
@@ -331,7 +333,7 @@ func AesCbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	plaintext := make([]byte, len(ciphertext))
 
 	if len(plaintext)%blockMode.BlockSize() != 0 {
-		return nil, fmt.Errorf("aes cbc: ciphertext length %d must be a multiple of block size %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("aes cbc: invalid ciphertext length %d, want multiple of %d", len(ciphertext), blockSize)
 	}
 
 	blockMode.CryptBlocks(plaintext, ciphertext)
@@ -344,7 +346,7 @@ func AesCbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	return plaintext, nil
 }
 
-// AesCbcEncryptZero encrypts plaintext using AES in CBC mode after ZeroPadding.
+// AesCbcEncryptZero encrypts plaintext using AES-CBC after ZeroPadding.
 // Initialization vector handling matches AesCbcEncryptPKCS7.
 func AesCbcEncryptZero(plaintext, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
@@ -366,7 +368,7 @@ func AesCbcEncryptZero(plaintext, key, iv []byte) ([]byte, error) {
 	ciphertext := make([]byte, len(plaintext))
 
 	if len(plaintext)%blockMode.BlockSize() != 0 {
-		return nil, fmt.Errorf("aes cbc: padded plaintext length %d must be a multiple of block size %d", len(plaintext), blockMode.BlockSize())
+		return nil, fmt.Errorf("aes cbc: invalid padded plaintext length %d, want multiple of %d", len(plaintext), blockMode.BlockSize())
 	}
 
 	blockMode.CryptBlocks(ciphertext, plaintext)
@@ -393,7 +395,7 @@ func AesCbcDecryptZero(ciphertext, key, iv []byte) ([]byte, error) {
 	plaintext := make([]byte, len(ciphertext))
 
 	if len(plaintext)%blockMode.BlockSize() != 0 {
-		return nil, fmt.Errorf("aes cbc: ciphertext length %d must be a multiple of block size %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("aes cbc: invalid ciphertext length %d, want multiple of %d", len(ciphertext), blockSize)
 	}
 
 	blockMode.CryptBlocks(plaintext, ciphertext)
