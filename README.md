@@ -56,12 +56,13 @@ Full API: [pkg.go.dev/github.com/choveylee/tutil](https://pkg.go.dev/github.com/
 - `AesEncrypt` and `AesDecrypt` operate on exactly one AES block. Use the explicit ECB/CBC helpers when working with longer inputs.
 - AES-CBC uses the first key block as the IV when `iv` is empty. This is legacy behavior for compatibility; new code should pass a fresh random IV.
 - Zero padding is lossy when plaintext can end with zero bytes.
-- `ResetRsaKeyType` configures the process-wide default PEM formats used by RSA helpers. Invalid format values are rejected.
+- `RsaEncrypt` and `RsaDecrypt` use RSAES-OAEP with SHA-256.
+- `ResetRsaKeyType` configures the process-wide default PEM formats used by `RSAKeyGenerator` and `RSAKeyGeneratorTo`. RSA parsing helpers detect the key format from the PEM block type.
 - `MysqlDsnEncode` is intentionally narrow: callers should use a DSN parser for URL-style or driver-specific connection strings.
 
 ## Security
 
-For new designs, prefer authenticated encryption such as AES-GCM over raw ECB/CBC helpers. RSA PKCS #1 v1.5 encryption, MD5, SHA-1, and `math/rand` helpers are provided for compatibility or non-security use cases.
+For new designs, prefer authenticated encryption such as AES-GCM over raw ECB/CBC helpers. MD5, SHA-1, RSASSA-PKCS1-v1_5 signatures, and `math/rand` helpers are provided for compatibility or non-security use cases.
 
 ## Contributing
 

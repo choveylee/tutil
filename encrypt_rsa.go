@@ -33,7 +33,7 @@ var (
 	rsaPrivateKeyType = PrivateKeyPKCS1
 )
 
-// ResetRsaKeyType configures the PEM decoding formats used for RSA public and private keys throughout this package.
+// ResetRsaKeyType configures the default PEM encodings used by RSA key generation in this package.
 // It is safe for concurrent use. Invalid key types return an error and leave the current configuration unchanged.
 func ResetRsaKeyType(publicKeyType int, privateKeyType int) error {
 	if publicKeyType != PublicKeyPKCS1 && publicKeyType != PublicKeyPKIX {
@@ -61,6 +61,76 @@ func decodeRSAPEM(key []byte) (*pem.Block, error) {
 	}
 
 	return block, nil
+}
+
+func parsePKIXRSAPublicKey(der []byte) (*rsa.PublicKey, error) {
+	publicInterface, err := x509.ParsePKIXPublicKey(der)
+	if err != nil {
+		return nil, err
+	}
+
+	publicKey, ok := publicInterface.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("rsa: public key has type %T, want *rsa.PublicKey", publicInterface)
+	}
+
+	return publicKey, nil
+}
+
+func parsePKCS8RSAPrivateKey(der []byte) (*rsa.PrivateKey, error) {
+	privateInterface, err := x509.ParsePKCS8PrivateKey(der)
+	if err != nil {
+		return nil, err
+	}
+
+	privateKey, ok := privateInterface.(*rsa.PrivateKey)
+	if !ok {
+		return nil, fmt.Errorf("rsa: private key has type %T, want *rsa.PrivateKey", privateInterface)
+	}
+
+	return privateKey, nil
+}
+
+func parseRSAPublicKey(block *pem.Block) (*rsa.PublicKey, error) {
+	switch block.Type {
+	case "PUBLIC KEY":
+		return parsePKIXRSAPublicKey(block.Bytes)
+	case "RSA PUBLIC KEY":
+		return x509.ParsePKCS1PublicKey(block.Bytes)
+	}
+
+	publicKey, err := parsePKIXRSAPublicKey(block.Bytes)
+	if err == nil {
+		return publicKey, nil
+	}
+
+	publicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
+	if err == nil {
+		return publicKey, nil
+	}
+
+	return nil, fmt.Errorf("rsa: unsupported public key PEM block type %q", block.Type)
+}
+
+func parseRSAPrivateKey(block *pem.Block) (*rsa.PrivateKey, error) {
+	switch block.Type {
+	case "PRIVATE KEY":
+		return parsePKCS8RSAPrivateKey(block.Bytes)
+	case "RSA PRIVATE KEY":
+		return x509.ParsePKCS1PrivateKey(block.Bytes)
+	}
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err == nil {
+		return privateKey, nil
+	}
+
+	privateKey, err = parsePKCS8RSAPrivateKey(block.Bytes)
+	if err == nil {
+		return privateKey, nil
+	}
+
+	return nil, fmt.Errorf("rsa: unsupported private key PEM block type %q", block.Type)
 }
 
 // RSAKeyGenerator generates an RSA key pair and writes private.pem and public.pem to the current working directory.
@@ -165,47 +235,20 @@ func RSAKeyGeneratorTo(dir string, bits int) error {
 	return pem.Encode(publicFile, &publicBlock)
 }
 
-// RsaEncrypt encrypts plaintext using RSAES-PKCS1-v1_5.
-// key must contain a PEM-encoded public key in the format configured by ResetRsaKeyType.
+// RsaEncrypt encrypts plaintext using RSAES-OAEP with SHA-256.
+// key must contain a PEM-encoded RSA public key.
 func RsaEncrypt(plaintext, key []byte) ([]byte, error) {
 	block, err := decodeRSAPEM(key)
 	if err != nil {
 		return nil, err
 	}
 
-	rsaKeyTypeMutex.RLock()
-
-	publicKeyType := rsaPublicKeyType
-
-	rsaKeyTypeMutex.RUnlock()
-
-	var publicKey *rsa.PublicKey
-
-	switch publicKeyType {
-	case PublicKeyPKIX:
-		publicInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		var ok bool
-
-		publicKey, ok = publicInterface.(*rsa.PublicKey)
-		if !ok {
-			return nil, fmt.Errorf("rsa: public key has type %T, want *rsa.PublicKey", publicInterface)
-		}
-	case PublicKeyPKCS1:
-		publicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		if publicKeyType != PublicKeyPKCS1 && publicKeyType != PublicKeyPKIX {
-			return nil, fmt.Errorf("rsa: invalid public key type %d", publicKeyType)
-		}
+	publicKey, err := parseRSAPublicKey(block)
+	if err != nil {
+		return nil, err
 	}
 
-	ciphertext, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, plaintext)
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, plaintext, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -213,47 +256,20 @@ func RsaEncrypt(plaintext, key []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// RsaDecrypt decrypts ciphertext using RSAES-PKCS1-v1_5.
-// key must contain a PEM-encoded private key in the format configured by ResetRsaKeyType.
+// RsaDecrypt decrypts ciphertext using RSAES-OAEP with SHA-256.
+// key must contain a PEM-encoded RSA private key.
 func RsaDecrypt(ciphertext, key []byte) ([]byte, error) {
 	block, err := decodeRSAPEM(key)
 	if err != nil {
 		return nil, err
 	}
 
-	rsaKeyTypeMutex.RLock()
-
-	privateKeyType := rsaPrivateKeyType
-
-	rsaKeyTypeMutex.RUnlock()
-
-	var privateKey *rsa.PrivateKey
-
-	switch privateKeyType {
-	case PrivateKeyPKCS1:
-		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-	case PrivateKeyPKCS8:
-		privateInterface, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		var ok bool
-
-		privateKey, ok = privateInterface.(*rsa.PrivateKey)
-		if !ok {
-			return nil, fmt.Errorf("rsa: private key has type %T, want *rsa.PrivateKey", privateInterface)
-		}
-	default:
-		if privateKeyType != PrivateKeyPKCS1 && privateKeyType != PrivateKeyPKCS8 {
-			return nil, fmt.Errorf("rsa: invalid private key type %d", privateKeyType)
-		}
+	privateKey, err := parseRSAPrivateKey(block)
+	if err != nil {
+		return nil, err
 	}
 
-	plaintext, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, ciphertext)
+	plaintext, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, privateKey, ciphertext, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -262,43 +278,16 @@ func RsaDecrypt(ciphertext, key []byte) ([]byte, error) {
 }
 
 // RsaSignature returns an RSASSA-PKCS1-v1_5 signature over the SHA-256 digest of message.
-// key must contain a PEM-encoded private key in the format configured by ResetRsaKeyType.
+// key must contain a PEM-encoded RSA private key.
 func RsaSignature(message, key []byte) ([]byte, error) {
 	block, err := decodeRSAPEM(key)
 	if err != nil {
 		return nil, err
 	}
 
-	rsaKeyTypeMutex.RLock()
-
-	privateKeyType := rsaPrivateKeyType
-
-	rsaKeyTypeMutex.RUnlock()
-
-	var privateKey *rsa.PrivateKey
-
-	switch privateKeyType {
-	case PrivateKeyPKCS1:
-		privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-	case PrivateKeyPKCS8:
-		privateInterface, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, err
-		}
-
-		var ok bool
-
-		privateKey, ok = privateInterface.(*rsa.PrivateKey)
-		if !ok {
-			return nil, fmt.Errorf("rsa: private key has type %T, want *rsa.PrivateKey", privateInterface)
-		}
-	default:
-		if privateKeyType != PrivateKeyPKCS1 && privateKeyType != PrivateKeyPKCS8 {
-			return nil, fmt.Errorf("rsa: invalid private key type %d", privateKeyType)
-		}
+	privateKey, err := parseRSAPrivateKey(block)
+	if err != nil {
+		return nil, err
 	}
 
 	h := sha256.Sum256(message)
@@ -314,36 +303,9 @@ func RsaSignatureVerify(message, sign, key []byte) (bool, error) {
 		return false, err
 	}
 
-	rsaKeyTypeMutex.RLock()
-
-	publicKeyType := rsaPublicKeyType
-
-	rsaKeyTypeMutex.RUnlock()
-
-	var publicKey *rsa.PublicKey
-
-	switch publicKeyType {
-	case PublicKeyPKIX:
-		publicInterface, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
-			return false, err
-		}
-
-		var ok bool
-
-		publicKey, ok = publicInterface.(*rsa.PublicKey)
-		if !ok {
-			return false, fmt.Errorf("rsa: public key has type %T, want *rsa.PublicKey", publicInterface)
-		}
-	case PublicKeyPKCS1:
-		publicKey, err = x509.ParsePKCS1PublicKey(block.Bytes)
-		if err != nil {
-			return false, err
-		}
-	default:
-		if publicKeyType != PublicKeyPKCS1 && publicKeyType != PublicKeyPKIX {
-			return false, fmt.Errorf("rsa: invalid public key type %d", publicKeyType)
-		}
+	publicKey, err := parseRSAPublicKey(block)
+	if err != nil {
+		return false, err
 	}
 
 	h := sha256.Sum256(message)
