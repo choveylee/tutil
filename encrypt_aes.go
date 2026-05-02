@@ -71,15 +71,15 @@ func AesDecrypt(ciphertext, key []byte) ([]byte, error) {
 func ecbEncryptBlocks(block cipher.Block, dst, src []byte) error {
 	blockSize := block.BlockSize()
 	if blockSize <= 0 {
-		return errors.New("aes ecb: block size must be positive")
+		return errors.New("ecb: block size must be positive")
 	}
 
 	if len(src)%blockSize != 0 {
-		return fmt.Errorf("aes ecb: encrypt input length %d is not a multiple of block size %d", len(src), blockSize)
+		return fmt.Errorf("ecb: encrypt input length %d is not a multiple of block size %d", len(src), blockSize)
 	}
 
 	if len(dst) < len(src) {
-		return fmt.Errorf("aes ecb: encrypt destination length %d is smaller than source length %d", len(dst), len(src))
+		return fmt.Errorf("ecb: encrypt destination length %d is smaller than source length %d", len(dst), len(src))
 	}
 
 	for len(src) > 0 {
@@ -96,15 +96,15 @@ func ecbEncryptBlocks(block cipher.Block, dst, src []byte) error {
 func ecbDecryptBlocks(block cipher.Block, dst, src []byte) error {
 	blockSize := block.BlockSize()
 	if blockSize <= 0 {
-		return errors.New("aes ecb: block size must be positive")
+		return errors.New("ecb: block size must be positive")
 	}
 
 	if len(src)%blockSize != 0 {
-		return fmt.Errorf("aes ecb: decrypt input length %d is not a multiple of block size %d", len(src), blockSize)
+		return fmt.Errorf("ecb: decrypt input length %d is not a multiple of block size %d", len(src), blockSize)
 	}
 
 	if len(dst) < len(src) {
-		return fmt.Errorf("aes ecb: decrypt destination length %d is smaller than source length %d", len(dst), len(src))
+		return fmt.Errorf("ecb: decrypt destination length %d is smaller than source length %d", len(dst), len(src))
 	}
 
 	for len(src) > 0 {
