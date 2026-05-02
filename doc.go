@@ -1,4 +1,4 @@
-// Package tutil provides small utilities for sortable identifiers, hashing and
-// message authentication, AES/RSA/SM2/SM4 interoperability helpers,
-// non-cryptographic random values, and MySQL DSN password escaping.
+// Package tutil provides utility functions for sortable identifiers, hashing
+// and message authentication, interoperability-oriented AES/RSA/SM2/SM4
+// helpers, non-cryptographic random values, and MySQL DSN password escaping.
 package tutil

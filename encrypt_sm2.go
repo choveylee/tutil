@@ -40,7 +40,8 @@ func Sm2Encrypt(plaintext []byte, hexPublicKey string) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// GenSm2KeyPair generates a new SM2 key pair using crypto/rand and returns the private and public keys as hexadecimal strings.
+// GenSm2KeyPair generates a new SM2 key pair using crypto/rand and returns the
+// private and public keys as hexadecimal strings.
 func GenSm2KeyPair() (string, string, error) {
 	privateKey, err := sm2.GenerateKey(rand.Reader)
 	if err != nil {

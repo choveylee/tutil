@@ -7,17 +7,18 @@ import (
 	"github.com/tjfoc/gmsm/sm4"
 )
 
-// sm4CheckCbcIV returns an error unless the length of iv equals blockSize.
+// sm4CheckCbcIV reports an error unless iv is exactly one block long.
 func sm4CheckCbcIV(iv []byte, blockSize int) error {
 	if len(iv) != blockSize {
-		return fmt.Errorf("sm4 cbc: invalid IV length %d, want %d", len(iv), blockSize)
+		return fmt.Errorf("sm4 cbc: invalid IV length %d; expected %d bytes", len(iv), blockSize)
 	}
 
 	return nil
 }
 
-// Sm4EcbEncryptPKCS7 encrypts plaintext using SM4 in ECB mode with PKCS #7 padding.
-// key must be 16 bytes. ECB mode is unsuitable for general-purpose confidentiality.
+// Sm4EcbEncryptPKCS7 encrypts plaintext using SM4 in ECB mode with PKCS #7
+// padding. key must be 16 bytes. ECB mode is retained only for legacy
+// interoperability.
 func Sm4EcbEncryptPKCS7(plaintext, key []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -137,7 +138,7 @@ func Sm4CbcDecryptPKCS7(ciphertext, key, iv []byte) ([]byte, error) {
 	}
 
 	if len(ciphertext)%blockSize != 0 {
-		return nil, fmt.Errorf("sm4 cbc: invalid ciphertext length %d, want multiple of %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d is not a multiple of block size %d", len(ciphertext), blockSize)
 	}
 
 	blockMode := cipher.NewCBCDecrypter(block, iv)
@@ -178,8 +179,9 @@ func Sm4CbcEncryptZero(plaintext, key, iv []byte) ([]byte, error) {
 	return ciphertext, nil
 }
 
-// Sm4CbcDecryptZero decrypts ciphertext produced by Sm4CbcEncryptZero and removes zero padding.
-// It writes plaintext into a new buffer and does not overwrite ciphertext.
+// Sm4CbcDecryptZero decrypts ciphertext produced by Sm4CbcEncryptZero and
+// removes zero padding. It writes plaintext into a new buffer and does not
+// overwrite ciphertext.
 func Sm4CbcDecryptZero(ciphertext, key, iv []byte) ([]byte, error) {
 	block, err := sm4.NewCipher(key)
 	if err != nil {
@@ -193,7 +195,7 @@ func Sm4CbcDecryptZero(ciphertext, key, iv []byte) ([]byte, error) {
 	}
 
 	if len(ciphertext)%blockSize != 0 {
-		return nil, fmt.Errorf("sm4 cbc: invalid ciphertext length %d, want multiple of %d", len(ciphertext), blockSize)
+		return nil, fmt.Errorf("sm4 cbc: ciphertext length %d is not a multiple of block size %d", len(ciphertext), blockSize)
 	}
 
 	blockMode := cipher.NewCBCDecrypter(block, iv)

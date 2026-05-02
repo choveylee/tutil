@@ -33,15 +33,17 @@ var (
 	rsaPrivateKeyType = PrivateKeyPKCS1
 )
 
-// ResetRsaKeyType configures the default PEM encodings used by RSA key generation in this package.
-// It is safe for concurrent use. Invalid key types return an error and leave the current configuration unchanged.
+// ResetRsaKeyType configures the default PEM encodings used when
+// RSAKeyGenerator and RSAKeyGeneratorTo write key files.
+// It is safe for concurrent use. Invalid selectors return an error and leave
+// the current configuration unchanged.
 func ResetRsaKeyType(publicKeyType int, privateKeyType int) error {
 	if publicKeyType != PublicKeyPKCS1 && publicKeyType != PublicKeyPKIX {
-		return fmt.Errorf("rsa: invalid public key type %d", publicKeyType)
+		return fmt.Errorf("rsa: unsupported public key encoding selector %d", publicKeyType)
 	}
 
 	if privateKeyType != PrivateKeyPKCS1 && privateKeyType != PrivateKeyPKCS8 {
-		return fmt.Errorf("rsa: invalid private key type %d", privateKeyType)
+		return fmt.Errorf("rsa: unsupported private key encoding selector %d", privateKeyType)
 	}
 
 	rsaKeyTypeMutex.Lock()
@@ -53,11 +55,12 @@ func ResetRsaKeyType(publicKeyType int, privateKeyType int) error {
 	return nil
 }
 
-// decodeRSAPEM decodes and returns the first PEM block in key, or an error if decoding fails.
+// decodeRSAPEM decodes and returns the first PEM block in key, or an error if
+// the PEM data is empty or malformed.
 func decodeRSAPEM(key []byte) (*pem.Block, error) {
 	block, _ := pem.Decode(key)
 	if block == nil {
-		return nil, errors.New("rsa: invalid or empty PEM data")
+		return nil, errors.New("rsa: PEM data is empty or malformed")
 	}
 
 	return block, nil
@@ -71,7 +74,7 @@ func parsePKIXRSAPublicKey(der []byte) (*rsa.PublicKey, error) {
 
 	publicKey, ok := publicInterface.(*rsa.PublicKey)
 	if !ok {
-		return nil, fmt.Errorf("rsa: public key has type %T, want *rsa.PublicKey", publicInterface)
+		return nil, fmt.Errorf("rsa: parsed public key has type %T; expected *rsa.PublicKey", publicInterface)
 	}
 
 	return publicKey, nil
@@ -85,7 +88,7 @@ func parsePKCS8RSAPrivateKey(der []byte) (*rsa.PrivateKey, error) {
 
 	privateKey, ok := privateInterface.(*rsa.PrivateKey)
 	if !ok {
-		return nil, fmt.Errorf("rsa: private key has type %T, want *rsa.PrivateKey", privateInterface)
+		return nil, fmt.Errorf("rsa: parsed private key has type %T; expected *rsa.PrivateKey", privateInterface)
 	}
 
 	return privateKey, nil
@@ -109,7 +112,7 @@ func parseRSAPublicKey(block *pem.Block) (*rsa.PublicKey, error) {
 		return publicKey, nil
 	}
 
-	return nil, fmt.Errorf("rsa: unsupported public key PEM block type %q", block.Type)
+	return nil, fmt.Errorf("rsa: unsupported PEM block type %q for an RSA public key", block.Type)
 }
 
 func parseRSAPrivateKey(block *pem.Block) (*rsa.PrivateKey, error) {
@@ -130,7 +133,7 @@ func parseRSAPrivateKey(block *pem.Block) (*rsa.PrivateKey, error) {
 		return privateKey, nil
 	}
 
-	return nil, fmt.Errorf("rsa: unsupported private key PEM block type %q", block.Type)
+	return nil, fmt.Errorf("rsa: unsupported PEM block type %q for an RSA private key", block.Type)
 }
 
 // RSAKeyGenerator generates an RSA key pair and writes private.pem and public.pem to the current working directory.
@@ -139,10 +142,11 @@ func RSAKeyGenerator(bits int) error {
 }
 
 // RSAKeyGeneratorTo generates an RSA key pair and writes private.pem and public.pem into dir.
-// bits must be at least 1024. The private key file is written with mode 0o600.
+// bits must be at least 1024. For new deployments, 2048 bits or larger is recommended.
+// The private key file is written with mode 0o600.
 func RSAKeyGeneratorTo(dir string, bits int) error {
 	if bits < 1024 {
-		return fmt.Errorf("rsa: invalid key size %d bits, want at least 1024", bits)
+		return fmt.Errorf("rsa: RSA key size %d bits is too small; minimum is 1024 bits", bits)
 	}
 
 	rsaKeyTypeMutex.RLock()
@@ -152,11 +156,11 @@ func RSAKeyGeneratorTo(dir string, bits int) error {
 	rsaKeyTypeMutex.RUnlock()
 
 	if publicKeyType != PublicKeyPKCS1 && publicKeyType != PublicKeyPKIX {
-		return fmt.Errorf("rsa: invalid public key type %d", publicKeyType)
+		return fmt.Errorf("rsa: unsupported public key encoding selector %d", publicKeyType)
 	}
 
 	if privateKeyType != PrivateKeyPKCS1 && privateKeyType != PrivateKeyPKCS8 {
-		return fmt.Errorf("rsa: invalid private key type %d", privateKeyType)
+		return fmt.Errorf("rsa: unsupported private key encoding selector %d", privateKeyType)
 	}
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, bits)

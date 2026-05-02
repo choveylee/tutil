@@ -19,8 +19,8 @@ type Oid [12]byte
 // SQL NULL values scan as ZeroOid.
 var ZeroOid = Oid(bson.NilObjectID)
 
-// NewOidHex returns a newly generated ObjectID as a 24-character lowercase hexadecimal string,
-// using the same encoding as bson.ObjectID.Hex.
+// NewOidHex returns a newly generated ObjectID as a 24-character lowercase
+// hexadecimal string, using the same encoding as bson.ObjectID.Hex.
 func NewOidHex() string {
 	return bson.NewObjectID().Hex()
 }
@@ -41,7 +41,8 @@ func NewOidFromTimestamp(timestamp time.Time) Oid {
 	return Oid(bson.NewObjectIDFromTimestamp(timestamp))
 }
 
-// NewOidHexFromTimestamp returns the hexadecimal string representation of NewOidFromTimestamp(timestamp).
+// NewOidHexFromTimestamp returns the hexadecimal representation of the ObjectID
+// produced by NewOidFromTimestamp.
 func NewOidHexFromTimestamp(timestamp time.Time) string {
 	return NewOidFromTimestamp(timestamp).Hex()
 }
@@ -50,7 +51,7 @@ func NewOidHexFromTimestamp(timestamp time.Time) string {
 // On failure it returns ZeroOid and a non-nil error.
 func ParseOid(id string) (Oid, error) {
 	if len(id) != 24 {
-		return ZeroOid, fmt.Errorf("oid: invalid hex length %d, want 24", len(id))
+		return ZeroOid, fmt.Errorf("oid: invalid hexadecimal length %d; expected 24 characters", len(id))
 	}
 
 	oidBytes, err := hex.DecodeString(id)
@@ -83,12 +84,13 @@ func (o Oid) IsZero() bool {
 	return bytes.Equal(o[:], ZeroOid[:])
 }
 
-// GormDataType is used by GORM for schema typing and returns "binary(12)" for raw ObjectID storage.
+// GormDataType returns the GORM schema type used for raw ObjectID storage.
 func (o Oid) GormDataType() string {
 	return "binary(12)"
 }
 
-// Value implements driver.Valuer by returning the 12-byte binary ObjectID representation.
+// Value implements driver.Valuer by returning the 12-byte binary ObjectID
+// representation.
 func (o Oid) Value() (driver.Value, error) {
 	return o[:], nil
 }
@@ -97,7 +99,7 @@ func (o Oid) Value() (driver.Value, error) {
 // Accepted types are []byte of length 12 or a 24-digit hexadecimal string.
 func (o *Oid) Scan(val any) error {
 	if o == nil {
-		return fmt.Errorf("oid: scan on nil *Oid receiver")
+		return fmt.Errorf("oid: Scan called with a nil *Oid receiver")
 	}
 
 	if val == nil {
@@ -109,7 +111,7 @@ func (o *Oid) Scan(val any) error {
 	switch x := val.(type) {
 	case []byte:
 		if len(x) != 12 {
-			return fmt.Errorf("oid: invalid []byte length %d, want 12", len(x))
+			return fmt.Errorf("oid: invalid binary length %d; expected 12 bytes", len(x))
 		}
 
 		copy(o[:], x)
@@ -125,7 +127,7 @@ func (o *Oid) Scan(val any) error {
 
 		return nil
 	default:
-		return fmt.Errorf("oid: invalid scan source type %T, want []byte or string", val)
+		return fmt.Errorf("oid: unsupported Scan source type %T; expected []byte or string", val)
 	}
 }
 

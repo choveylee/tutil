@@ -23,7 +23,8 @@ func NewUidStr() string {
 	return ulid.Make().String()
 }
 
-// NewUid returns a newly generated ULID using the current UTC time and default entropy, as defined by ulid.Make.
+// NewUid returns a newly generated ULID using the current UTC time and default
+// entropy, as defined by ulid.Make.
 func NewUid() Uid {
 	return Uid(ulid.Make())
 }
@@ -42,7 +43,8 @@ func NewUidFromTimestamp(timestamp time.Time) (Uid, error) {
 	return Uid(id), nil
 }
 
-// NewUidStrFromTimestamp returns the string representation from NewUidFromTimestamp.
+// NewUidStrFromTimestamp returns the canonical string representation of the
+// ULID produced by NewUidFromTimestamp.
 // On failure it returns an empty string and a non-nil error.
 func NewUidStrFromTimestamp(timestamp time.Time) (string, error) {
 	u, err := NewUidFromTimestamp(timestamp)
@@ -81,12 +83,13 @@ func (u Uid) IsZero() bool {
 	return bytes.Equal(u[:], ZeroUid[:])
 }
 
-// GormDataType is used by GORM for schema typing and returns "binary(16)" for raw ULID storage.
+// GormDataType returns the GORM schema type used for raw ULID storage.
 func (u Uid) GormDataType() string {
 	return "binary(16)"
 }
 
-// Value implements driver.Valuer by returning the 16-byte binary ULID representation.
+// Value implements driver.Valuer by returning the 16-byte binary ULID
+// representation.
 func (u Uid) Value() (driver.Value, error) {
 	return u[:], nil
 }
@@ -95,7 +98,7 @@ func (u Uid) Value() (driver.Value, error) {
 // Accepted types are []byte of length 16 or a 26-character ULID string.
 func (u *Uid) Scan(val any) error {
 	if u == nil {
-		return fmt.Errorf("uid: scan on nil *Uid receiver")
+		return fmt.Errorf("uid: Scan called with a nil *Uid receiver")
 	}
 
 	if val == nil {
@@ -107,7 +110,7 @@ func (u *Uid) Scan(val any) error {
 	switch x := val.(type) {
 	case []byte:
 		if len(x) != 16 {
-			return fmt.Errorf("uid: invalid []byte length %d, want 16", len(x))
+			return fmt.Errorf("uid: invalid binary length %d; expected 16 bytes", len(x))
 		}
 
 		copy(u[:], x)
@@ -123,7 +126,7 @@ func (u *Uid) Scan(val any) error {
 
 		return nil
 	default:
-		return fmt.Errorf("uid: invalid scan source type %T, want []byte or string", val)
+		return fmt.Errorf("uid: unsupported Scan source type %T; expected []byte or string", val)
 	}
 }
 
